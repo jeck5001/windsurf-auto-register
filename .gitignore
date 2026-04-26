@@ -6,6 +6,7 @@ venv/
 .venv/
 .idea/
 .vscode/
+.superpowers/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

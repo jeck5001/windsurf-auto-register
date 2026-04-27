@@ -4,4 +4,39 @@
   <h1>Tasks</h1>
   <p>Create runs, control queue execution, and inspect per-task results.</p>
 </header>
+
+<section class="task-layout">
+  <form id="task-form" class="panel">
+    <label>
+      Mode
+      <select name="mode">
+        <option value="full">full</option>
+        <option value="trial">trial</option>
+        <option value="trial-browser">trial-browser</option>
+        <option value="upload">upload</option>
+      </select>
+    </label>
+    <label>
+      Account Count
+      <input type="number" name="account_count" value="1" min="1">
+    </label>
+    <label>
+      Email
+      <input type="email" name="email">
+    </label>
+    <label>
+      Password
+      <input type="password" name="password">
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="generate_trial_link">
+      Generate trial link
+    </label>
+    <button type="submit">Create Task</button>
+  </form>
+  <section class="panel">
+    <h2>Recent Tasks</h2>
+    <div id="task-table">Task list will appear here.</div>
+  </section>
+</section>
 {% endblock %}

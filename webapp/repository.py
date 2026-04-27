@@ -105,6 +105,35 @@ class Repository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def dashboard_snapshot(self) -> dict[str, Any]:
+        with connect(self.db_path) as connection:
+            counts = connection.execute(
+                """
+                select
+                    sum(case when status = 'running' then 1 else 0 end) as running_count,
+                    sum(case when status = 'queued' then 1 else 0 end) as queued_count,
+                    sum(case when status = 'failed' then 1 else 0 end) as failed_count,
+                    sum(case when status = 'succeeded' then 1 else 0 end) as succeeded_count
+                from tasks
+                """
+            ).fetchone()
+            events = connection.execute(
+                "select task_id, level, message, created_at from task_events order by id desc limit 20"
+            ).fetchall()
+            tasks = connection.execute(
+                "select id, mode, status, created_at from tasks order by id desc limit 10"
+            ).fetchall()
+        return {
+            "stats": {
+                "running": int(counts["running_count"] or 0),
+                "queued": int(counts["queued_count"] or 0),
+                "failed": int(counts["failed_count"] or 0),
+                "succeeded": int(counts["succeeded_count"] or 0),
+            },
+            "events": [dict(row) for row in events],
+            "tasks": [dict(row) for row in tasks],
+        }
+
     def get_task(self, task_id: int) -> dict[str, Any]:
         with connect(self.db_path) as connection:
             row = connection.execute(

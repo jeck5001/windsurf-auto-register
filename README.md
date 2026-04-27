@@ -220,6 +220,28 @@ python windsurf_auth_replay.py \
 python proto_handler.py --session-token 'devin-session-token$...'
 ```
 
+## Web Admin
+
+安装运行依赖：
+
+```bash
+pip install -r requirements.txt
+```
+
+安装测试依赖：
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+启动管理端：
+
+```bash
+uvicorn webapp.app:app --reload
+```
+
+打开 `http://127.0.0.1:8000/dashboard`
+
 ### 4. 用浏览器自动点击页面生成 Trial 链接
 
 ```bash

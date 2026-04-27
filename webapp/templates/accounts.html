@@ -4,4 +4,24 @@
   <h1>Accounts</h1>
   <p>Review produced accounts, OTT upload state, and trial outputs.</p>
 </header>
+
+<section class="panel">
+  <table>
+    <thead>
+      <tr><th>Email</th><th>Mode</th><th>Pool Status</th><th>Trial URL</th></tr>
+    </thead>
+    <tbody>
+      {% for account in accounts %}
+      <tr>
+        <td>{{ account.email }}</td>
+        <td>{{ account.mode }}</td>
+        <td>{{ account.pool_status }}</td>
+        <td>{{ "yes" if account.trial_checkout_url else "no" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No accounts yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endblock %}

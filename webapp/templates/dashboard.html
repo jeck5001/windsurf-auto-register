@@ -4,4 +4,51 @@
   <h1>Dashboard</h1>
   <p>Command center for current runs, queue health, and live logs.</p>
 </header>
+
+<section class="stats-grid">
+  <article class="panel">
+    <span>Running</span>
+    <strong>{{ stats.running }}</strong>
+  </article>
+  <article class="panel">
+    <span>Queued Tasks</span>
+    <strong>{{ stats.queued }}</strong>
+  </article>
+  <article class="panel">
+    <span>Failed</span>
+    <strong>{{ stats.failed }}</strong>
+  </article>
+  <article class="panel">
+    <span>Succeeded</span>
+    <strong>{{ stats.succeeded }}</strong>
+  </article>
+</section>
+
+<section class="board-grid">
+  <article class="panel">
+    <h2>Active and Recent Tasks</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Mode</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr><td>#{{ task.id }}</td><td>{{ task.mode }}</td><td>{{ task.status }}</td></tr>
+        {% else %}
+        <tr><td colspan="3">No tasks yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+  <article class="panel panel-dark">
+    <h2>Recent Events</h2>
+    <ul class="event-list">
+      {% for event in events %}
+      <li><span>{{ event.level }}</span><p>{{ event.message }}</p></li>
+      {% else %}
+      <li><span>idle</span><p>No events yet.</p></li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
 {% endblock %}

@@ -4,4 +4,13 @@
   <h1>Settings</h1>
   <p>Environment readiness for YYDS Mail, Pool API, and trial generation.</p>
 </header>
+
+<section class="settings-grid">
+  {% for name, item in checks.items() %}
+  <article class="panel">
+    <h2>{{ name }}</h2>
+    <strong>{{ item.display }}</strong>
+  </article>
+  {% endfor %}
+</section>
 {% endblock %}

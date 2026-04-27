@@ -263,6 +263,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+仓库内也包含 `.github/workflows/docker-build.yml`，会在 `push`、`pull_request` 和手动触发时验证镜像构建。
+
 打开：
 
 ```text

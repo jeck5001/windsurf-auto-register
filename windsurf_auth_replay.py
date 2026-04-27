@@ -487,6 +487,7 @@ class WindsurfClient:
         return token
 
     def request_verification_code(self, email: str) -> str:
+        workflow_checkpoint("request_verification_code")
         response = self.session.post(
             f"{self.base_url}/_devin-auth/email/start",
             headers=self._json_headers(),

@@ -712,7 +712,7 @@ class WindsurfPoolClient:
             timeout=self.request_timeout,
             verify=self.verify_ssl,
         )
-        if response.status_code == 401 and self.dashboard_password:
+        if not response.ok and self.dashboard_password:
             response = self.session.get(
                 f"{self.base_url}/dashboard/api/accounts",
                 timeout=self.request_timeout,

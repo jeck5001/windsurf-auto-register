@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 
+from webapp.env_loader import load_project_env
 from webapp.runtime import load_runtime_settings
 
 
 def build_health_snapshot() -> dict:
+    load_project_env()
     settings = load_runtime_settings()
     checks = {
         "runtime_mode": {

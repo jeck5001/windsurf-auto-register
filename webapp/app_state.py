@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 
 from webapp.db import init_db
+from webapp.env_loader import load_project_env
 from webapp.repository import Repository
 from webapp.runtime import load_runtime_settings
 from webapp.task_manager import TaskManager
@@ -18,6 +19,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def configure_app_state(app) -> None:
+    load_project_env()
     settings = load_runtime_settings()
     db_path = getattr(app.state, "db_path", settings.db_path)
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)

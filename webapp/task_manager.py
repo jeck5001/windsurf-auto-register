@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,6 +16,17 @@ class TaskManager:
     repo: Repository
     paused: bool = False
     current_task_id: int | None = None
+
+    def __post_init__(self) -> None:
+        self._event = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def _loop(self) -> None:
+        while True:
+            self._event.wait(timeout=1.0)
+            self._event.clear()
+            self.run_next_once()
 
     def run_next_once(self) -> None:
         if self.paused:
@@ -52,9 +64,10 @@ class TaskManager:
 
     def resume(self) -> None:
         self.paused = False
+        self.wake()
 
     def wake(self) -> None:
-        return None
+        self._event.set()
 
     def stop(self, task_id: int) -> None:
         if self.current_task_id == task_id:

@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from webapp.config_health import build_health_snapshot
+from webapp.pool_sync import sync_pool_accounts
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
@@ -54,6 +55,12 @@ def tasks_page(request: Request) -> HTMLResponse:
 @router.get("/accounts", response_class=HTMLResponse)
 def accounts_page(request: Request) -> HTMLResponse:
     repo = getattr(request.app.state, "repository", None)
+    pool_client = getattr(request.app.state, "pool_client", None)
+    if repo is not None and pool_client is not None:
+        try:
+            sync_pool_accounts(repo, pool_client)
+        except Exception:
+            pass
     accounts = repo.list_accounts() if repo is not None else []
     return templates.TemplateResponse(
         request,

@@ -57,6 +57,33 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
     assert "configured" in settings_response.text
 
 
+def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monkeypatch):
+    db_path = tmp_path / "admin.db"
+    init_db(db_path)
+    repo = Repository(db_path)
+    app.state.repository = repo
+
+    class FakePoolClient:
+        def list_accounts(self):
+            return [
+                {"id": "pool-1", "email": "legacy@example.com", "status": "active"},
+                {"id": "pool-2", "email": "other@example.com", "status": "paused"},
+            ]
+
+    app.state.pool_client = FakePoolClient()
+
+    client = TestClient(app)
+    response = client.get("/accounts")
+    second_response = client.get("/accounts")
+
+    assert response.status_code == 200
+    assert second_response.status_code == 200
+    assert "legacy@example.com" in response.text
+    assert "other@example.com" in response.text
+    rows = repo.list_accounts(limit=10)
+    assert [row["email"] for row in rows] == ["other@example.com", "legacy@example.com"]
+
+
 def test_tasks_page_shows_docker_runtime_notice(tmp_path, monkeypatch):
     app.state.db_path = tmp_path / "admin.db"
     monkeypatch.setenv("RUNNING_IN_DOCKER", "1")

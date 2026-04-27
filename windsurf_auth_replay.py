@@ -712,6 +712,13 @@ class WindsurfPoolClient:
             timeout=self.request_timeout,
             verify=self.verify_ssl,
         )
+        if response.status_code == 401 and self.dashboard_password:
+            response = self.session.get(
+                f"{self.base_url}/dashboard/api/accounts",
+                timeout=self.request_timeout,
+                verify=self.verify_ssl,
+                headers={"X-Dashboard-Password": self.resolve_dashboard_password()},
+            )
         raise_for_http(response, "读取 WindsurfPoolAPI 账户列表")
         payload = maybe_json(response)
         if not isinstance(payload, dict):

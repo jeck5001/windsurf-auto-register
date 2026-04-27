@@ -97,6 +97,26 @@ class Repository:
                 ),
             )
 
+    def upsert_pool_account(self, email: str, pool_status: str) -> None:
+        with connect(self.db_path) as connection:
+            existing = connection.execute(
+                "select id from accounts where email = ? order by id desc limit 1",
+                (email,),
+            ).fetchone()
+            if existing is None:
+                connection.execute(
+                    """
+                    insert into accounts(task_id, email, mode, ott, trial_checkout_url, pool_status)
+                    values (0, ?, 'pool-sync', '', '', ?)
+                    """,
+                    (email, pool_status),
+                )
+            else:
+                connection.execute(
+                    "update accounts set pool_status = coalesce(?, pool_status) where id = ?",
+                    (pool_status or None, existing["id"]),
+                )
+
     def list_accounts(self, limit: int = 50) -> list[dict[str, Any]]:
         with connect(self.db_path) as connection:
             rows = connection.execute(

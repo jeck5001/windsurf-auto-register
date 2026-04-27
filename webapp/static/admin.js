@@ -1,3 +1,62 @@
+function updateTaskFormForMode(form) {
+  const mode = form.querySelector("[name=mode]").value;
+  const hint = form.querySelector("#task-mode-hint");
+  const emailField = form.querySelector("#task-email-field");
+  const passwordField = form.querySelector("#task-password-field");
+  const accountCountInput = form.querySelector("[name=account_count]");
+  const emailInput = form.querySelector("[name=email]");
+  const passwordInput = form.querySelector("[name=password]");
+  const trialCheckbox = form.querySelector("[name=generate_trial_link]");
+
+  const configs = {
+    full: {
+      hint: "Leave email and password blank in full mode to auto-generate them.",
+      showEmail: true,
+      showPassword: true,
+      showAccountCount: true,
+      showTrial: true,
+      emailPlaceholder: "Optional in full mode",
+      passwordPlaceholder: "Optional in full mode",
+    },
+    trial: {
+      hint: "Trial mode needs an existing account email plus password, unless you use a saved session token outside the UI.",
+      showEmail: true,
+      showPassword: true,
+      showAccountCount: false,
+      showTrial: false,
+      emailPlaceholder: "Required in trial mode",
+      passwordPlaceholder: "Required in trial mode",
+    },
+    "trial-browser": {
+      hint: "Trial-browser mode signs into an existing account. Fill email and password for that account.",
+      showEmail: true,
+      showPassword: true,
+      showAccountCount: false,
+      showTrial: false,
+      emailPlaceholder: "Required in trial-browser mode",
+      passwordPlaceholder: "Required in trial-browser mode",
+    },
+    upload: {
+      hint: "Upload mode does not use email or password from this form.",
+      showEmail: false,
+      showPassword: false,
+      showAccountCount: false,
+      showTrial: false,
+      emailPlaceholder: "",
+      passwordPlaceholder: "",
+    },
+  };
+  const config = configs[mode] || configs.full;
+
+  hint.textContent = config.hint;
+  emailField.hidden = !config.showEmail;
+  passwordField.hidden = !config.showPassword;
+  accountCountInput.closest("label").hidden = !config.showAccountCount;
+  trialCheckbox.closest("label").hidden = !config.showTrial;
+  emailInput.placeholder = config.emailPlaceholder;
+  passwordInput.placeholder = config.passwordPlaceholder;
+}
+
 async function submitTaskForm(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -31,6 +90,8 @@ function attachTaskEventStream(taskId, target) {
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("task-form");
   if (form) {
+    updateTaskFormForMode(form);
+    form.querySelector("[name=mode]").addEventListener("change", () => updateTaskFormForMode(form));
     form.addEventListener("submit", submitTaskForm);
   }
 });

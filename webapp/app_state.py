@@ -27,6 +27,9 @@ def configure_app_state(app) -> None:
     app.state.db_path = db_path
     init_db(db_path)
     app.state.repository = Repository(db_path)
+    app.state.repository.mark_stale_running_tasks_failed(
+        "Worker restarted before task completed"
+    )
     app.state.task_manager = TaskManager(app.state.repository)
     pool_base_url = os.getenv("WINDSURF_POOL_URL", "").strip()
     if pool_base_url:

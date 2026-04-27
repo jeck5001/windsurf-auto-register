@@ -83,6 +83,7 @@ def _build_args(request: WorkflowRequest) -> Namespace:
         login_url="",
         billing_url="",
         headless_browser=False,
+        interactive=False,
         trial_success_url=env_str("WINDSURF_TRIAL_SUCCESS_URL"),
         trial_cancel_url=env_str("WINDSURF_TRIAL_CANCEL_URL"),
         trial_plan_id=env_str("WINDSURF_TRIAL_PLAN_ID"),

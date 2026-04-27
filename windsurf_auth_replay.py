@@ -276,6 +276,12 @@ def prompt_value(label: str, default: str = "") -> str:
     return value or default
 
 
+def should_prompt(interactive: Optional[bool] = None) -> bool:
+    if interactive is not None:
+        return interactive
+    return sys.stdin.isatty()
+
+
 def prompt_password() -> str:
     password = getpass.getpass("请输入注册密码（直接回车则自动生成）: ").strip()
     if password:
@@ -285,19 +291,31 @@ def prompt_password() -> str:
     return password
 
 
-def prompt_login_password() -> str:
+def resolve_registration_password(provided_password: str, interactive: Optional[bool] = None) -> str:
+    if provided_password:
+        return provided_password
+    if should_prompt(interactive):
+        return prompt_password()
+    password = generate_password()
+    print(f"[*] 当前为非交互环境，已自动生成注册密码: {password}")
+    return password
+
+
+def prompt_login_password(interactive: Optional[bool] = None) -> str:
+    if not should_prompt(interactive):
+        raise WorkflowError("当前为非交互环境，无法提示输入密码")
     password = getpass.getpass("请输入已有账号的登录密码: ").strip()
     if not password:
         raise WorkflowError("trial 模式缺少登录密码，或请直接提供 session token")
     return password
 
 
-def prompt_account_count(value: Optional[int]) -> int:
+def prompt_account_count(value: Optional[int], interactive: Optional[bool] = None) -> int:
     if value is not None:
         if value < 1:
             raise WorkflowError("账号数量必须大于等于 1")
         return value
-    if not sys.stdin.isatty():
+    if not should_prompt(interactive):
         return 1
     raw = prompt_value("请输入需要注册的账号数量", default="1")
     try:
@@ -1327,12 +1345,13 @@ async def _async_run_browser_trial(
 def trial_browser_workflow(config: AppConfig, args: argparse.Namespace) -> dict[str, Any]:
     email = args.email
     password = args.password
+    interactive = getattr(args, "interactive", None)
 
     if not email:
         raise WorkflowError("trial-browser 模式需要 --email")
     if not password:
-        if sys.stdin.isatty():
-            password = prompt_login_password()
+        if should_prompt(interactive):
+            password = prompt_login_password(interactive=interactive)
         else:
             raise WorkflowError("trial-browser 模式需要 --password")
 
@@ -1486,9 +1505,10 @@ def run_registration_attempt(
 def full_workflow(config: AppConfig, args: argparse.Namespace) -> dict[str, Any]:
     if not config.pool_base_url:
         raise WorkflowError("缺少 WindsurfPoolAPI 地址，请通过 --pool-base-url 或 WINDSURF_POOL_URL 手动提供")
-    account_count = prompt_account_count(args.account_count)
+    interactive = getattr(args, "interactive", None)
+    account_count = prompt_account_count(args.account_count, interactive=interactive)
     print_step(f"本轮计划注册 {account_count} 个账号")
-    password = args.password or prompt_password()
+    password = resolve_registration_password(args.password, interactive=interactive)
 
     session = requests.Session()
     windsurf = WindsurfClient(
@@ -1568,7 +1588,10 @@ def full_workflow(config: AppConfig, args: argparse.Namespace) -> dict[str, Any]
 def upload_only_workflow(config: AppConfig, args: argparse.Namespace) -> dict[str, Any]:
     if not config.pool_base_url:
         raise WorkflowError("缺少 WindsurfPoolAPI 地址，请通过 --pool-base-url 或 WINDSURF_POOL_URL 手动提供")
-    ott = args.ott or prompt_value("请输入要上传的 OTT")
+    interactive = getattr(args, "interactive", None)
+    ott = args.ott
+    if not ott and should_prompt(interactive):
+        ott = prompt_value("请输入要上传的 OTT")
     if not ott:
         raise WorkflowError("没有提供 OTT")
 
@@ -1624,13 +1647,14 @@ def trial_workflow(config: AppConfig, args: argparse.Namespace) -> dict[str, Any
     session_token = args.session_token
     email = args.email
     password = args.password
+    interactive = getattr(args, "interactive", None)
 
     if not session_token:
         if not email:
             raise WorkflowError("trial 模式需要 --email，或者直接提供 --session-token")
         if not password:
-            if sys.stdin.isatty():
-                password = prompt_login_password()
+            if should_prompt(interactive):
+                password = prompt_login_password(interactive=interactive)
             else:
                 raise WorkflowError("trial 模式缺少登录密码，或请直接提供 --session-token")
         print_step("正在检查账号是否支持密码登录")

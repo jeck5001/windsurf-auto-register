@@ -47,6 +47,17 @@ class Repository:
                 (error_text, task_id),
             )
 
+    def mark_stale_running_tasks_failed(self, error_text: str) -> None:
+        with connect(self.db_path) as connection:
+            connection.execute(
+                """
+                update tasks
+                set status = 'failed', error_text = ?, finished_at = current_timestamp
+                where status = 'running'
+                """,
+                (error_text,),
+            )
+
     def add_event(self, task_id: int, level: str, message: str) -> None:
         with connect(self.db_path) as connection:
             connection.execute(

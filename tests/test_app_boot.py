@@ -44,3 +44,24 @@ def test_configure_app_state_loads_env_from_ancestor_repo_root(tmp_path, monkeyp
 
     assert fake_app.state.pool_client is not None
     assert os.getenv("WINDSURF_POOL_URL") == "http://pool.example"
+
+
+def test_configure_app_state_marks_stale_running_tasks_failed(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("WINDSURF_POOL_URL", raising=False)
+
+    db_path = tmp_path / "admin.db"
+    fake_app = SimpleNamespace(state=SimpleNamespace())
+    fake_app.state.db_path = db_path
+
+    configure_app_state(fake_app)
+    task_id = fake_app.state.repository.create_task(mode="full", payload={"account_count": 1})
+    fake_app.state.repository.mark_running(task_id)
+
+    second_app = SimpleNamespace(state=SimpleNamespace())
+    second_app.state.db_path = db_path
+    configure_app_state(second_app)
+    task = second_app.state.repository.get_task(task_id)
+
+    assert task["status"] == "failed"
+    assert "Worker restarted before task completed" in task["error_text"]

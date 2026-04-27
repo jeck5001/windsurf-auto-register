@@ -4,6 +4,7 @@ from argparse import Namespace
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from webapp.runtime import RuntimeSettings, load_runtime_settings
 from windsurf_auth_replay import (
     WorkflowError,
     build_config,
@@ -25,6 +26,19 @@ class WorkflowRequest:
     password: str
     account_count: int
     generate_trial_link: bool
+
+
+def validate_runtime_support(
+    request: WorkflowRequest,
+    settings: RuntimeSettings,
+) -> None:
+    if not settings.docker_mode:
+        return
+    if request.mode == "trial-browser" or request.generate_trial_link:
+        raise WorkflowError(
+            "Docker runtime does not support browser automation flows in v1. "
+            "Run this task outside Docker or use a non-browser mode."
+        )
 
 
 def _build_args(request: WorkflowRequest) -> Namespace:
@@ -78,6 +92,8 @@ def run_workflow_once(
     request: WorkflowRequest,
     on_event: Callable[[dict[str, str]], None],
 ) -> dict[str, Any]:
+    settings = load_runtime_settings()
+    validate_runtime_support(request, settings)
     args = _build_args(request)
     config = build_config(args)
     token = set_event_callback(on_event)

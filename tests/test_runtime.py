@@ -39,3 +39,9 @@ def test_validate_runtime_support_rejects_browser_flows_in_docker():
             ),
             settings,
         )
+
+
+def test_docker_assets_exist():
+    assert Path("Dockerfile").exists()
+    assert Path("docker-compose.yml").exists()
+    assert Path(".dockerignore").exists()

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextvars import ContextVar
 import getpass
 import json
 import os
@@ -31,7 +32,7 @@ import string
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -64,6 +65,38 @@ USER_AGENT = (
 
 class WorkflowError(Exception):
     """Raised when a workflow step fails with a user-facing message."""
+
+
+EventCallback = Callable[[dict[str, str]], None]
+_event_callback: ContextVar[Optional[EventCallback]] = ContextVar(
+    "_event_callback",
+    default=None,
+)
+_stop_requested: ContextVar[bool] = ContextVar("_stop_requested", default=False)
+
+
+def set_event_callback(callback: EventCallback) -> object:
+    return _event_callback.set(callback)
+
+
+def reset_event_callback(token: object) -> None:
+    _event_callback.reset(token)
+
+
+def request_stop() -> None:
+    _stop_requested.set(True)
+
+
+def clear_stop_request() -> None:
+    _stop_requested.set(False)
+
+
+def workflow_checkpoint(label: str) -> None:
+    callback = _event_callback.get()
+    if callback is not None:
+        callback({"level": "debug", "message": label})
+    if _stop_requested.get():
+        raise WorkflowError("任务被用户停止")
 
 
 def env_str(name: str, default: str = "") -> str:
@@ -315,15 +348,24 @@ def raise_for_http(response: requests.Response, context: str) -> None:
     raise WorkflowError(f"{context}失败: {extract_error_message(response)}")
 
 
+def _emit_event(level: str, message: str) -> None:
+    callback = _event_callback.get()
+    if callback is not None:
+        callback({"level": level, "message": message})
+
+
 def print_step(message: str) -> None:
+    _emit_event("info", message)
     print(f"[*] {message}")
 
 
 def print_success(message: str) -> None:
+    _emit_event("success", message)
     print(f"[+] {message}")
 
 
 def print_warn(message: str) -> None:
+    _emit_event("warning", message)
     print(f"[!] {message}")
 
 

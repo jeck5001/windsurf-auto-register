@@ -6,6 +6,7 @@ venv/
 .venv/
 .idea/
 .vscode/
+.worktrees/
 .superpowers/
 .pytest_cache/
 .mypy_cache/

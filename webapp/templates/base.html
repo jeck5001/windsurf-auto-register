@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Windsurf Admin</title>
+    <link rel="stylesheet" href="/static/admin.css">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail">
+        <div class="brand">WA</div>
+        <a href="/dashboard" class="{% if page == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/tasks" class="{% if page == 'tasks' %}active{% endif %}">Tasks</a>
+        <a href="/accounts" class="{% if page == 'accounts' %}active{% endif %}">Accounts</a>
+        <a href="/settings" class="{% if page == 'settings' %}active{% endif %}">Settings</a>
+      </aside>
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+    <script src="/static/admin.js"></script>
+  </body>
+</html>

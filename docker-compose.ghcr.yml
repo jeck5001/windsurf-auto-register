@@ -1,0 +1,14 @@
+services:
+  app:
+    image: ghcr.io/jeck5001/windsurf-auto-register:latest
+    container_name: windsurf-auto-register
+    env_file:
+      - .env
+    environment:
+      RUNNING_IN_DOCKER: "1"
+      WINDSURF_ADMIN_DB_PATH: /app/data/windsurf_admin.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

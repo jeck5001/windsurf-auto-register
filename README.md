@@ -265,6 +265,13 @@ docker compose up --build
 
 仓库内也包含 `.github/workflows/docker-build.yml`，会在 `push`、`pull_request` 和手动触发时验证镜像构建。
 
+如果你要部署到只负责拉镜像的 NAS，可直接使用 GHCR 版本的 Compose 文件：
+
+```bash
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
 打开：
 
 ```text
@@ -277,6 +284,51 @@ http://127.0.0.1:8000/dashboard
 - 数据库文件路径是 `./data/windsurf_admin.db`
 - Docker v1 不支持 browser automation 流程，例如 `trial-browser` 和 `generate_trial_link`
 - 这类任务请在非 Docker 运行时执行
+
+## GHCR / 飞牛 NAS 部署
+
+GitHub Actions 会在 `push` 时构建多架构镜像并推送到 `GHCR`：
+
+- `ghcr.io/jeck5001/windsurf-auto-register:latest`
+- `ghcr.io/jeck5001/windsurf-auto-register:<branch>`
+- `ghcr.io/jeck5001/windsurf-auto-register:sha-<commit>`
+
+第一次推送成功后，如果你的 GitHub Package 默认还是私有，需要到 GitHub 的 Packages 页面把这个镜像切到 `Public`，否则 NAS 无法匿名拉取。
+
+飞牛 NAS 建议使用仓库里的 [docker-compose.ghcr.yml](/Users/jfwang/IdeaProjects/CascadeProjects/windsurf-auto-register/.worktrees/codex-windsurf-admin-ui/docker-compose.ghcr.yml)：
+
+```yaml
+services:
+  app:
+    image: ghcr.io/jeck5001/windsurf-auto-register:latest
+    container_name: windsurf-auto-register
+    env_file:
+      - .env
+    environment:
+      RUNNING_IN_DOCKER: "1"
+      WINDSURF_ADMIN_DB_PATH: /app/data/windsurf_admin.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+NAS 侧目录准备：
+
+```bash
+cp .env.example .env
+mkdir -p data
+```
+
+启动：
+
+```bash
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+如果你后续想固定到某个构建，不跟随 `latest`，把 `image` 标签改成对应的 `sha-<commit>` 即可。
 
 ### 4. 用浏览器自动点击页面生成 Trial 链接
 

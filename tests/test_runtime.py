@@ -44,7 +44,9 @@ def test_validate_runtime_support_rejects_browser_flows_in_docker():
 def test_docker_assets_exist():
     assert Path("Dockerfile").exists()
     assert Path("docker-compose.yml").exists()
+    assert Path("docker-compose.ghcr.yml").exists()
     assert Path(".dockerignore").exists()
+    assert Path(".github/workflows/docker-build.yml").exists()
 
 
 def test_readme_mentions_compose_runtime():
@@ -52,3 +54,5 @@ def test_readme_mentions_compose_runtime():
     assert "docker compose up --build" in readme
     assert "./data/windsurf_admin.db" in readme
     assert "Docker v1" in readme
+    assert "GHCR" in readme
+    assert "docker-compose.ghcr.yml" in readme

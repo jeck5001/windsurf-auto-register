@@ -55,3 +55,15 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
     assert "account@example.com" in accounts_response.text
     assert settings_response.status_code == 200
     assert "configured" in settings_response.text
+
+
+def test_tasks_page_shows_docker_runtime_notice(tmp_path, monkeypatch):
+    app.state.db_path = tmp_path / "admin.db"
+    monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
+    monkeypatch.setenv("WINDSURF_ADMIN_DB_PATH", str(tmp_path / "admin.db"))
+
+    with TestClient(app) as client:
+        response = client.get("/tasks")
+
+    assert response.status_code == 200
+    assert "Docker runtime does not support browser automation flows in v1" in response.text

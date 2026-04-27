@@ -108,6 +108,11 @@ body {
   color: inherit;
 }
 
+.panel-warning {
+  border-color: #d7b15b;
+  background: #fff8e7;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

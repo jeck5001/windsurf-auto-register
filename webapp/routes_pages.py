@@ -35,10 +35,19 @@ def dashboard_page(request: Request) -> HTMLResponse:
 
 @router.get("/tasks", response_class=HTMLResponse)
 def tasks_page(request: Request) -> HTMLResponse:
+    settings = getattr(request.app.state, "runtime_settings", None)
     return templates.TemplateResponse(
         request,
         "tasks.html",
-        {"page": "tasks", "title": "Tasks", "tasks": []},
+        {
+            "page": "tasks",
+            "title": "Tasks",
+            "tasks": [],
+            "docker_mode": bool(settings and settings.docker_mode),
+            "browser_automation_supported": bool(
+                settings and settings.browser_automation_supported
+            ),
+        },
     )
 
 

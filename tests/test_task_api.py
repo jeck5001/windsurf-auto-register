@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import time
 
 from webapp.app import app
 
@@ -51,3 +52,37 @@ def test_task_events_endpoint_returns_sse(tmp_path):
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
         assert "task created" in response.text
+
+
+def test_create_task_api_rejects_generate_trial_link_in_docker(tmp_path, monkeypatch):
+    app.state.db_path = tmp_path / "admin.db"
+    monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
+    monkeypatch.setenv("WINDSURF_ADMIN_DB_PATH", str(tmp_path / "admin.db"))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/tasks",
+            json={
+                "mode": "full",
+                "email": "",
+                "password": "",
+                "account_count": 1,
+                "generate_trial_link": True,
+            },
+        )
+
+        assert response.status_code == 201
+        task_id = response.json()["id"]
+
+        deadline = time.time() + 2
+        while time.time() < deadline:
+            task = app.state.repository.get_task(task_id)
+            if task["status"] == "failed":
+                break
+            time.sleep(0.05)
+
+        task = app.state.repository.get_task(task_id)
+        assert task["status"] == "failed"
+
+        events = client.get(f"/api/tasks/{task_id}/events")
+        assert "Docker runtime does not support browser automation flows in v1" in events.text

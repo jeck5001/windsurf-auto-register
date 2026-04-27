@@ -93,12 +93,12 @@ def run_workflow_once(
     on_event: Callable[[dict[str, str]], None],
 ) -> dict[str, Any]:
     settings = load_runtime_settings()
-    validate_runtime_support(request, settings)
-    args = _build_args(request)
-    config = build_config(args)
     token = set_event_callback(on_event)
     clear_stop_request()
     try:
+        validate_runtime_support(request, settings)
+        args = _build_args(request)
+        config = build_config(args)
         on_event({"level": "info", "message": f"starting mode={request.mode}"})
         if request.mode == "upload":
             result = upload_only_workflow(config, args)

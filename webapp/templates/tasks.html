@@ -5,6 +5,13 @@
   <p>Create runs, control queue execution, and inspect per-task results.</p>
 </header>
 
+{% if docker_mode and not browser_automation_supported %}
+<section class="panel panel-warning">
+  <h2>Docker runtime limitation</h2>
+  <p>Docker runtime does not support browser automation flows in v1. Use non-browser modes in this container.</p>
+</section>
+{% endif %}
+
 <section class="task-layout">
   <form id="task-form" class="panel">
     <label>

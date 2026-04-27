@@ -242,6 +242,40 @@ uvicorn webapp.app:app --reload
 
 打开 `http://127.0.0.1:8000/dashboard`
 
+## Docker Compose
+
+第一版容器运行时提供单容器 `app` 服务：
+
+- FastAPI admin UI
+- 同进程后台 worker
+- SQLite 持久化到 `./data/windsurf_admin.db`
+- 配置来自项目根 `.env`
+
+如果你还没有本地配置文件，先复制：
+
+```bash
+cp .env.example .env
+```
+
+启动：
+
+```bash
+docker compose up --build
+```
+
+打开：
+
+```text
+http://127.0.0.1:8000/dashboard
+```
+
+说明：
+
+- Compose 会把 `./data` 挂载到容器内 `/app/data`
+- 数据库文件路径是 `./data/windsurf_admin.db`
+- Docker v1 不支持 browser automation 流程，例如 `trial-browser` 和 `generate_trial_link`
+- 这类任务请在非 Docker 运行时执行
+
 ### 4. 用浏览器自动点击页面生成 Trial 链接
 
 ```bash

@@ -45,3 +45,10 @@ def test_docker_assets_exist():
     assert Path("Dockerfile").exists()
     assert Path("docker-compose.yml").exists()
     assert Path(".dockerignore").exists()
+
+
+def test_readme_mentions_compose_runtime():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert "docker compose up --build" in readme
+    assert "./data/windsurf_admin.db" in readme
+    assert "Docker v1" in readme

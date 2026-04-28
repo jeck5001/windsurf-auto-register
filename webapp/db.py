@@ -39,6 +39,7 @@ def init_db(db_path: Path) -> None:
             id integer primary key autoincrement,
             task_id integer not null,
             email text,
+            password text,
             mode text not null,
             ott text,
             session_token text,
@@ -57,6 +58,8 @@ def init_db(db_path: Path) -> None:
         row["name"]
         for row in connection.execute("pragma table_info(accounts)").fetchall()
     }
+    if "password" not in columns:
+        connection.execute("alter table accounts add column password text")
     if "session_token" not in columns:
         connection.execute("alter table accounts add column session_token text")
     connection.commit()

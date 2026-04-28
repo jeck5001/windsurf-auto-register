@@ -13,6 +13,8 @@ def test_dashboard_page_renders_navigation():
     assert "Tasks" in response.text
     assert "Accounts" in response.text
     assert "Settings" in response.text
+    assert '/static/admin.css?v=' in response.text
+    assert '/static/admin.js?v=' in response.text
 
 
 def test_dashboard_shows_stats_from_repository(tmp_path):
@@ -63,6 +65,7 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
     assert 'data-account-push-button="' in accounts_response.text
     assert 'data-account-delete-button="' in accounts_response.text
     assert 'id="account-modal"' in accounts_response.text
+    assert 'id="modal-password"' in accounts_response.text
     assert 'id="modal-session-token"' in accounts_response.text
     assert 'data-modal-trial' not in accounts_response.text
     assert 'data-modal-push' not in accounts_response.text

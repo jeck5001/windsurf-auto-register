@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import time
 
 from webapp.db import init_db
 from webapp.env_loader import load_project_env
@@ -23,6 +24,7 @@ def configure_app_state(app) -> None:
     settings = load_runtime_settings()
     db_path = getattr(app.state, "db_path", settings.db_path)
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    app.state.asset_version = os.getenv("WINDSURF_ADMIN_ASSET_VERSION", str(int(time.time())))
     app.state.runtime_settings = settings
     app.state.db_path = db_path
     init_db(db_path)

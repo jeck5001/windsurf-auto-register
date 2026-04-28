@@ -185,6 +185,7 @@ function modalElements() {
     modal: document.getElementById("account-modal"),
     accountId: document.getElementById("modal-account-id"),
     email: document.getElementById("modal-email"),
+    password: document.getElementById("modal-password"),
     poolStatus: document.getElementById("modal-pool-status"),
     sessionToken: document.getElementById("modal-session-token"),
     trialUrl: document.getElementById("modal-trial-url"),
@@ -197,6 +198,7 @@ function openAccountModal(button) {
   const fields = modalElements();
   fields.accountId.value = account.id || "";
   fields.email.value = account.email || "";
+  fields.password.value = account.password || "";
   fields.poolStatus.value = account.pool_status || "";
   fields.sessionToken.value = account.session_token || "";
   fields.trialUrl.value = account.trial_checkout_url || "";
@@ -210,6 +212,7 @@ async function saveAccountFromModal() {
   const text = accountMessages();
   const data = {
     email: fields.email.value,
+    password: fields.password.value,
     pool_status: fields.poolStatus.value,
     session_token: fields.sessionToken.value,
     trial_checkout_url: fields.trialUrl.value,

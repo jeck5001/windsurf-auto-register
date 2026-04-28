@@ -15,6 +15,7 @@ from webapp.workflow_runner import WorkflowRequest, run_workflow_once
 def _account_updates_from_result(result: dict[str, Any]) -> dict[str, str]:
     updates: dict[str, str] = {}
     email = str(result.get("email") or "").strip()
+    password = str(result.get("password") or "").strip()
     ott = str(result.get("ott") or "").strip()
     session_token = str(result.get("session_token") or "").strip()
     trial_checkout_url = str(result.get("trial_checkout_url") or "").strip()
@@ -23,6 +24,8 @@ def _account_updates_from_result(result: dict[str, Any]) -> dict[str, str]:
     ).strip()
     if email:
         updates["email"] = email
+    if password:
+        updates["password"] = password
     if ott:
         updates["ott"] = ott
     if session_token:

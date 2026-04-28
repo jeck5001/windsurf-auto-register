@@ -131,7 +131,7 @@ async def trigger_account_trial(request: Request, account_id: int, payload: dict
         WorkflowRequest(
             mode="trial",
             email=str(account.get("email") or "").strip(),
-            password="",
+            password=str(payload.get("password") or account.get("password") or "").strip(),
             account_count=1,
             generate_trial_link=False,
             session_token=session_token,

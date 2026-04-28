@@ -22,6 +22,7 @@ def _context(request: Request, page: str, title_key: str, **values):
         "title": t(title_key),
         "lang": lang,
         "t": t,
+        "asset_version": getattr(request.app.state, "asset_version", "dev"),
         **values,
     }
 

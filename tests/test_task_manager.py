@@ -14,6 +14,7 @@ def test_task_manager_runs_a_queued_task(tmp_path, monkeypatch):
         lambda request, on_event: {
             "mode": request.mode,
             "email": "done@example.com",
+            "password": "SecretPass123",
             "ott": "ott$masked",
         },
     )
@@ -21,9 +22,11 @@ def test_task_manager_runs_a_queued_task(tmp_path, monkeypatch):
     task_id = repo.create_task(mode="full", payload={"account_count": 1})
     manager.run_next_once()
     task = repo.get_task(task_id)
+    account = repo.list_accounts()[0]
 
     assert task["status"] == "succeeded"
     assert task["result"]["email"] == "done@example.com"
+    assert account["password"] == "SecretPass123"
 
 
 def test_task_manager_wake_processes_queue_in_background(tmp_path, monkeypatch):
@@ -115,6 +118,7 @@ def test_task_manager_saves_each_account_from_batch_full_result(tmp_path, monkey
                 {
                     "mode": "full",
                     "email": "first@example.com",
+                    "password": "FirstPass123",
                     "ott": "ott$first",
                     "session_token": "session-first",
                     "pool_result": {"account": {"status": "active"}},
@@ -122,6 +126,7 @@ def test_task_manager_saves_each_account_from_batch_full_result(tmp_path, monkey
                 {
                     "mode": "full",
                     "email": "second@example.com",
+                    "password": "SecondPass123",
                     "ott": "ott$second",
                     "session_token": "session-second",
                     "pool_result": {"account": {"status": "paused"}},
@@ -137,7 +142,9 @@ def test_task_manager_saves_each_account_from_batch_full_result(tmp_path, monkey
     accounts = repo.list_accounts(limit=10)
     assert repo.get_task(task_id)["status"] == "succeeded"
     assert [account["email"] for account in accounts] == ["second@example.com", "first@example.com"]
+    assert accounts[0]["password"] == "SecondPass123"
     assert accounts[0]["ott"] == "ott$second"
     assert accounts[0]["session_token"] == "session-second"
+    assert accounts[1]["password"] == "FirstPass123"
     assert accounts[1]["ott"] == "ott$first"
     assert accounts[1]["session_token"] == "session-first"

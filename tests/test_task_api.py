@@ -109,6 +109,7 @@ def test_account_update_and_delete_api_manage_local_accounts(tmp_path):
             f"/api/accounts/{account_id}",
             json={
                 "email": "new@example.com",
+                "password": "VisiblePass123",
                 "pool_status": "paused",
                 "trial_checkout_url": "https://checkout.stripe.com/new",
             },
@@ -116,6 +117,7 @@ def test_account_update_and_delete_api_manage_local_accounts(tmp_path):
 
         assert update_response.status_code == 200
         assert update_response.json()["account"]["email"] == "new@example.com"
+        assert update_response.json()["account"]["password"] == "VisiblePass123"
         assert update_response.json()["account"]["pool_status"] == "paused"
 
         delete_response = client.delete(f"/api/accounts/{account_id}")
@@ -154,6 +156,43 @@ def test_account_trial_api_generates_link_for_existing_account(tmp_path, monkeyp
         assert response.status_code == 200
         assert response.json()["account"]["trial_checkout_url"] == "https://checkout.stripe.com/direct"
         assert repo.get_account(account_id)["trial_checkout_url"] == "https://checkout.stripe.com/direct"
+
+
+def test_account_trial_api_forwards_stored_password_for_browser_fallback(tmp_path, monkeypatch):
+    app.state.db_path = tmp_path / "admin.db"
+
+    with TestClient(app) as client:
+        repo = app.state.repository
+        repo.save_account_result(
+            task_id=1,
+            mode="full",
+            result={
+                "email": "account@example.com",
+                "password": "VisiblePass123",
+                "session_token": "session-plain",
+            },
+        )
+        account_id = repo.list_accounts()[0]["id"]
+        captured = {}
+
+        def fake_run(workflow_request, on_event):
+            captured["password"] = workflow_request.password
+            return {
+                "mode": "trial",
+                "email": workflow_request.email,
+                "session_token": workflow_request.session_token,
+                "trial_checkout_url": "https://checkout.stripe.com/direct",
+            }
+
+        monkeypatch.setattr("webapp.routes_api.run_workflow_once", fake_run)
+
+        response = client.post(
+            f"/api/accounts/{account_id}/trial",
+            json={},
+        )
+
+        assert response.status_code == 200
+        assert captured["password"] == "VisiblePass123"
 
 
 def test_account_trial_api_rejects_without_stored_session_token(tmp_path):

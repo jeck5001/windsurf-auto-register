@@ -8,8 +8,17 @@ services:
     environment:
       RUNNING_IN_DOCKER: "1"
       WINDSURF_ADMIN_DB_PATH: /app/data/windsurf_admin.db
+      TURNSTILE_SOLVER_URL: http://turnstile-solver:8001/solve
+    depends_on:
+      - turnstile-solver
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    restart: unless-stopped
+
+  turnstile-solver:
+    build:
+      context: .
+      dockerfile: Dockerfile.turnstile-solver
     restart: unless-stopped

@@ -155,6 +155,80 @@ def test_generate_trial_checkout_continues_when_eligibility_endpoint_errors(monk
     assert captured["turnstile_token"] == "turnstile-token"
 
 
+def test_resolve_turnstile_token_uses_solver_url(monkeypatch):
+    config = SimpleNamespace(
+        turnstile_token="",
+        turnstile_solver_url="http://turnstile-solver:8001/solve",
+        turnstile_site_url="https://windsurf.com/billing/individual?plan=9",
+        turnstile_sitekey="site-key",
+        turnstile_browser_path="",
+        turnstile_timeout=45,
+        turnstile_headless=True,
+        request_timeout=20,
+        verify_ssl=True,
+    )
+
+    class FakeResponse:
+        ok = True
+
+        def json(self):
+            return {"token": "solver-token"}
+
+    captured = {}
+
+    def fake_post(url, json, timeout, verify):
+        captured["url"] = url
+        captured["json"] = json
+        captured["timeout"] = timeout
+        captured["verify"] = verify
+        return FakeResponse()
+
+    monkeypatch.setattr("windsurf_auth_replay.requests.post", fake_post)
+
+    token, source = resolve_turnstile_token(config)
+
+    assert token == "solver-token"
+    assert source == "solver_url"
+    assert captured["url"] == "http://turnstile-solver:8001/solve"
+    assert captured["json"]["site_url"] == "https://windsurf.com/billing/individual?plan=9"
+    assert captured["json"]["sitekey"] == "site-key"
+    assert captured["json"]["timeout"] == 45
+    assert captured["json"]["headless"] is True
+    assert captured["timeout"] == 20
+    assert captured["verify"] is True
+
+
+def test_resolve_turnstile_token_surfaces_solver_detail(monkeypatch):
+    config = SimpleNamespace(
+        turnstile_token="",
+        turnstile_solver_url="http://turnstile-solver:8001/solve",
+        turnstile_site_url="https://windsurf.com/billing/individual?plan=9",
+        turnstile_sitekey="",
+        turnstile_browser_path="",
+        turnstile_timeout=45,
+        turnstile_headless=True,
+        request_timeout=20,
+        verify_ssl=True,
+    )
+
+    class FakeResponse:
+        ok = False
+        status_code = 502
+        text = '{"detail":"solver timed out"}'
+
+        def json(self):
+            return {"detail": "solver timed out"}
+
+    monkeypatch.setattr("windsurf_auth_replay.requests.post", lambda *args, **kwargs: FakeResponse())
+
+    try:
+        resolve_turnstile_token(config)
+    except WorkflowError as exc:
+        assert str(exc) == "请求外部 Turnstile solver失败: solver timed out"
+    else:
+        raise AssertionError("expected WorkflowError")
+
+
 def test_generate_trial_checkout_prefers_api_when_session_token_exists(monkeypatch):
     config = SimpleNamespace()
     captured = {"browser_called": False}
@@ -246,3 +320,85 @@ def test_resolve_turnstile_token_rejects_local_browser_mode_in_docker(monkeypatc
         )
     else:
         raise AssertionError("expected WorkflowError")
+
+
+def test_generate_trial_checkout_does_not_browser_fallback_in_docker(monkeypatch):
+    monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
+    config = SimpleNamespace()
+    captured = {"browser_called": False}
+
+    class FakeWindsurf:
+        def check_trial_eligibility(self, session_token, config):
+            raise WorkflowError("检查 Trial 资格失败: an internal error occurred")
+
+        def create_trial_checkout_url(self, session_token, turnstile_token, config):
+            raise AssertionError("create_trial_checkout_url should not be called after token resolution fails")
+
+    monkeypatch.setattr(
+        "windsurf_auth_replay.resolve_turnstile_token",
+        lambda config: (_ for _ in ()).throw(
+            WorkflowError(
+                "Docker runtime does not support local Turnstile browser solving in v1. "
+                "Set TURNSTILE_SOLVER_URL or WINDSURF_TURNSTILE_TOKEN."
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "windsurf_auth_replay._browser_trial_fallback",
+        lambda *args, **kwargs: captured.__setitem__("browser_called", True),
+    )
+
+    try:
+        generate_trial_checkout(
+            FakeWindsurf(),
+            config,
+            session_token="session-plain",
+            email="account@example.com",
+            password="VisiblePass123",
+        )
+    except WorkflowError as exc:
+        assert str(exc) == (
+            "Docker runtime does not support local Turnstile browser solving in v1. "
+            "Set TURNSTILE_SOLVER_URL or WINDSURF_TURNSTILE_TOKEN."
+        )
+    else:
+        raise AssertionError("expected WorkflowError")
+
+    assert captured["browser_called"] is False
+
+
+def test_generate_trial_checkout_does_not_browser_fallback_when_solver_url_fails(monkeypatch):
+    monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
+    config = SimpleNamespace()
+    captured = {"browser_called": False}
+
+    class FakeWindsurf:
+        def check_trial_eligibility(self, session_token, config):
+            return True
+
+        def create_trial_checkout_url(self, session_token, turnstile_token, config):
+            raise AssertionError("should not reach checkout call")
+
+    monkeypatch.setattr(
+        "windsurf_auth_replay.resolve_turnstile_token",
+        lambda config: (_ for _ in ()).throw(WorkflowError("solver unavailable")),
+    )
+    monkeypatch.setattr(
+        "windsurf_auth_replay._browser_trial_fallback",
+        lambda *args, **kwargs: captured.__setitem__("browser_called", True),
+    )
+
+    try:
+        generate_trial_checkout(
+            FakeWindsurf(),
+            config,
+            session_token="session-plain",
+            email="account@example.com",
+            password="VisiblePass123",
+        )
+    except WorkflowError as exc:
+        assert str(exc) == "solver unavailable"
+    else:
+        raise AssertionError("expected WorkflowError")
+
+    assert captured["browser_called"] is False

@@ -1003,7 +1003,12 @@ def generate_trial_checkout(
             "turnstile_token_source": token_source,
         }
     except WorkflowError as api_exc:
-        if not email or not password:
+        can_browser_fallback = bool(email and password) and not env_bool("RUNNING_IN_DOCKER", False)
+        non_fallback_errors = (
+            "Docker runtime does not support local Turnstile browser solving in v1.",
+            "本地 Turnstile 求解失败:",
+        )
+        if (not can_browser_fallback) or str(api_exc).startswith(non_fallback_errors):
             raise
         print_warn(f"API 方式生成 Trial 链接失败: {api_exc}")
         print_step("正在降级到浏览器自动化方式")

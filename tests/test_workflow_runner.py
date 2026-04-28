@@ -4,6 +4,7 @@ from webapp.workflow_runner import WorkflowRequest, run_workflow_once
 from windsurf_auth_replay import (
     WorkflowError,
     _browser_trial_fallback,
+    resolve_turnstile_token,
     generate_trial_checkout,
     resolve_registration_password,
 )
@@ -213,5 +214,35 @@ def test_browser_trial_fallback_wraps_unexpected_browser_errors(monkeypatch):
         )
     except WorkflowError as exc:
         assert str(exc) == "浏览器自动化 Trial 失败: Executable doesn't exist"
+    else:
+        raise AssertionError("expected WorkflowError")
+
+
+def test_resolve_turnstile_token_rejects_local_browser_mode_in_docker(monkeypatch):
+    monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
+    config = SimpleNamespace(
+        turnstile_token="",
+        turnstile_solver_url="",
+        turnstile_site_url="https://windsurf.com/billing/individual?plan=9",
+        turnstile_sitekey="",
+        turnstile_browser_path="",
+        turnstile_timeout=30,
+        turnstile_headless=True,
+        request_timeout=20,
+        verify_ssl=True,
+    )
+
+    monkeypatch.setattr(
+        "windsurf_auth_replay.solve_turnstile_token_with_options",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("should not call local browser solver")),
+    )
+
+    try:
+        resolve_turnstile_token(config)
+    except WorkflowError as exc:
+        assert str(exc) == (
+            "Docker runtime does not support local Turnstile browser solving in v1. "
+            "Set TURNSTILE_SOLVER_URL or WINDSURF_TURNSTILE_TOKEN."
+        )
     else:
         raise AssertionError("expected WorkflowError")

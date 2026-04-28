@@ -820,54 +820,62 @@ async def async_solve_turnstile_token(
     if resolved_browser:
         launch_kwargs["executable_path"] = resolved_browser
 
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(**launch_kwargs)
-        page = await browser.new_page()
-        try:
-            await page.goto(site_url, wait_until="domcontentloaded", timeout=timeout * 1000)
-            await page.wait_for_timeout(1500)
-
-            for frame in page.frames:
-                if "challenges.cloudflare.com" not in frame.url:
-                    continue
-                for selector in ("#checkbox", "input[type=checkbox]", "label.ctp-checkbox-label"):
-                    locator = frame.locator(selector)
-                    try:
-                        if await locator.count():
-                            await locator.first.click(timeout=5000)
-                            break
-                    except Exception:
-                        continue
-
-            token_script = """
-            () => {
-              const hidden = document.querySelector('[name="cf-turnstile-response"]');
-              if (hidden && hidden.value) return hidden.value;
-              try {
-                if (window.turnstile && typeof window.turnstile.getResponse === "function") {
-                  const value = window.turnstile.getResponse();
-                  if (value) return value;
-                }
-              } catch (err) {}
-              return "";
-            }
-            """
-            for _ in range(max(1, timeout)):
-                token = await page.evaluate(token_script)
-                if token:
-                    return token
-                await page.wait_for_timeout(1000)
-        except Exception as exc:
+    try:
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(**launch_kwargs)
+            page = await browser.new_page()
             try:
-                await page.screenshot(path="turnstile_error.png")
-            except Exception:
-                pass
-            detail = f"{exc}. 如需排查可查看 turnstile_error.png"
-            if sitekey:
-                detail += f"，当前 sitekey={sitekey}"
-            raise WorkflowError(f"本地 Turnstile 求解失败: {detail}") from exc
-        finally:
-            await browser.close()
+                await page.goto(site_url, wait_until="domcontentloaded", timeout=timeout * 1000)
+                await page.wait_for_timeout(1500)
+
+                for frame in page.frames:
+                    if "challenges.cloudflare.com" not in frame.url:
+                        continue
+                    for selector in ("#checkbox", "input[type=checkbox]", "label.ctp-checkbox-label"):
+                        locator = frame.locator(selector)
+                        try:
+                            if await locator.count():
+                                await locator.first.click(timeout=5000)
+                                break
+                        except Exception:
+                            continue
+
+                token_script = """
+                () => {
+                  const hidden = document.querySelector('[name="cf-turnstile-response"]');
+                  if (hidden && hidden.value) return hidden.value;
+                  try {
+                    if (window.turnstile && typeof window.turnstile.getResponse === "function") {
+                      const value = window.turnstile.getResponse();
+                      if (value) return value;
+                    }
+                  } catch (err) {}
+                  return "";
+                }
+                """
+                for _ in range(max(1, timeout)):
+                    token = await page.evaluate(token_script)
+                    if token:
+                        return token
+                    await page.wait_for_timeout(1000)
+            except Exception as exc:
+                try:
+                    await page.screenshot(path="turnstile_error.png")
+                except Exception:
+                    pass
+                detail = f"{exc}. 如需排查可查看 turnstile_error.png"
+                if sitekey:
+                    detail += f"，当前 sitekey={sitekey}"
+                raise WorkflowError(f"本地 Turnstile 求解失败: {detail}") from exc
+            finally:
+                await browser.close()
+    except WorkflowError:
+        raise
+    except Exception as exc:
+        detail = str(exc)
+        if sitekey:
+            detail += f"，当前 sitekey={sitekey}"
+        raise WorkflowError(f"本地 Turnstile 求解失败: {detail}") from exc
     raise WorkflowError("本地 Turnstile 求解失败: 在超时时间内没有拿到 token")
 
 
@@ -910,6 +918,11 @@ def resolve_turnstile_token(config: AppConfig) -> tuple[str, str]:
         if not isinstance(payload, dict) or not payload.get("token"):
             raise WorkflowError("请求外部 Turnstile solver 失败: 响应里没有 token")
         return str(payload["token"]), "solver_url"
+    if env_bool("RUNNING_IN_DOCKER", False):
+        raise WorkflowError(
+            "Docker runtime does not support local Turnstile browser solving in v1. "
+            "Set TURNSTILE_SOLVER_URL or WINDSURF_TURNSTILE_TOKEN."
+        )
     token = solve_turnstile_token_with_options(
         site_url=config.turnstile_site_url,
         sitekey=config.turnstile_sitekey,

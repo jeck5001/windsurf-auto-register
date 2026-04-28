@@ -1,7 +1,12 @@
 from types import SimpleNamespace
 
 from webapp.workflow_runner import WorkflowRequest, run_workflow_once
-from windsurf_auth_replay import WorkflowError, generate_trial_checkout, resolve_registration_password
+from windsurf_auth_replay import (
+    WorkflowError,
+    _browser_trial_fallback,
+    generate_trial_checkout,
+    resolve_registration_password,
+)
 
 
 def test_run_workflow_once_emits_masked_events(monkeypatch):
@@ -147,3 +152,66 @@ def test_generate_trial_checkout_continues_when_eligibility_endpoint_errors(monk
     assert result["trial_checkout_url"] == "https://checkout.stripe.com/direct"
     assert captured["session_token"] == "session-plain"
     assert captured["turnstile_token"] == "turnstile-token"
+
+
+def test_generate_trial_checkout_prefers_api_when_session_token_exists(monkeypatch):
+    config = SimpleNamespace()
+    captured = {"browser_called": False}
+
+    class FakeWindsurf:
+        def check_trial_eligibility(self, session_token, config):
+            captured["eligibility_session_token"] = session_token
+            return True
+
+        def create_trial_checkout_url(self, session_token, turnstile_token, config):
+            captured["checkout_session_token"] = session_token
+            captured["turnstile_token"] = turnstile_token
+            return "https://checkout.stripe.com/direct"
+
+    monkeypatch.setattr(
+        "windsurf_auth_replay.resolve_turnstile_token",
+        lambda config: ("turnstile-token", "solver"),
+    )
+    monkeypatch.setattr(
+        "windsurf_auth_replay._browser_trial_fallback",
+        lambda *args, **kwargs: captured.__setitem__("browser_called", True),
+    )
+
+    result = generate_trial_checkout(
+        FakeWindsurf(),
+        config,
+        session_token="session-plain",
+        email="account@example.com",
+        password="VisiblePass123",
+    )
+
+    assert result["trial_checkout_url"] == "https://checkout.stripe.com/direct"
+    assert captured["eligibility_session_token"] == "session-plain"
+    assert captured["checkout_session_token"] == "session-plain"
+    assert captured["turnstile_token"] == "turnstile-token"
+    assert captured["browser_called"] is False
+
+
+def test_browser_trial_fallback_wraps_unexpected_browser_errors(monkeypatch):
+    config = SimpleNamespace(
+        base_url="https://windsurf.com",
+        turnstile_site_url="https://windsurf.com/billing/individual?plan=9",
+        turnstile_timeout=30,
+        turnstile_browser_path="",
+    )
+
+    async def fake_browser_trial(*args, **kwargs):
+        raise RuntimeError("Executable doesn't exist")
+
+    monkeypatch.setattr("windsurf_auth_replay._async_run_browser_trial", fake_browser_trial)
+
+    try:
+        _browser_trial_fallback(
+            config,
+            email="account@example.com",
+            password="VisiblePass123",
+        )
+    except WorkflowError as exc:
+        assert str(exc) == "浏览器自动化 Trial 失败: Executable doesn't exist"
+    else:
+        raise AssertionError("expected WorkflowError")

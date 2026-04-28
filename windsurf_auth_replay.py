@@ -933,17 +933,22 @@ def _browser_trial_fallback(
     billing_url = billing_url or config.turnstile_site_url
     timeout = max(10, config.turnstile_timeout)
 
-    checkout_url = asyncio.run(
-        _async_run_browser_trial(
-            email=email,
-            password=password,
-            login_url=login_url,
-            billing_url=billing_url,
-            browser_path=config.turnstile_browser_path,
-            timeout=timeout,
-            headless=headless,
+    try:
+        checkout_url = asyncio.run(
+            _async_run_browser_trial(
+                email=email,
+                password=password,
+                login_url=login_url,
+                billing_url=billing_url,
+                browser_path=config.turnstile_browser_path,
+                timeout=timeout,
+                headless=headless,
+            )
         )
-    )
+    except WorkflowError:
+        raise
+    except Exception as exc:
+        raise WorkflowError(f"浏览器自动化 Trial 失败: {exc}") from exc
     return {
         "trial_eligible": True,
         "trial_checkout_url": checkout_url,
@@ -959,20 +964,6 @@ def generate_trial_checkout(
     password: str = "",
     args: Optional[argparse.Namespace] = None,
 ) -> dict[str, Any]:
-    if email and password:
-        print_step("已跳过 Trial API 方式，直接使用浏览器自动化生成链接")
-        login_url = getattr(args, "login_url", "") if args else ""
-        billing_url = getattr(args, "billing_url", "") if args else ""
-        headless = getattr(args, "headless_browser", False) if args else False
-        return _browser_trial_fallback(
-            config,
-            email=email,
-            password=password,
-            login_url=login_url,
-            billing_url=billing_url,
-            headless=headless,
-        )
-
     eligible: Optional[bool] = None
     try:
         print_step("正在检查 Pro Trial 资格")

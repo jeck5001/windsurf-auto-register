@@ -21,4 +21,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.turnstile-solver
+    shm_size: "1gb"
     restart: unless-stopped

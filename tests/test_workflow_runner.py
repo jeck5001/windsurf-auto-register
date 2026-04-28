@@ -196,7 +196,7 @@ def test_resolve_turnstile_token_uses_solver_url(monkeypatch):
     assert captured["json"]["sitekey"] == "site-key"
     assert captured["json"]["timeout"] == 45
     assert captured["json"]["headless"] is True
-    assert captured["timeout"] == 50
+    assert captured["timeout"] == 75
     assert captured["verify"] is True
 
 
@@ -260,7 +260,7 @@ def test_resolve_turnstile_token_uses_turnstile_timeout_for_solver_request(monke
 
     resolve_turnstile_token(config)
 
-    assert captured["timeout"] == 95
+    assert captured["timeout"] == 120
 
 
 def test_resolve_turnstile_token_wraps_solver_request_timeout(monkeypatch):

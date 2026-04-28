@@ -797,6 +797,13 @@ def resolve_browser_executable_path(explicit_path: str = "") -> str:
     return ""
 
 
+def build_browser_launch_args() -> list[str]:
+    args = ["--disable-blink-features=AutomationControlled"]
+    if env_bool("RUNNING_IN_DOCKER", False):
+        args.extend(["--no-sandbox", "--disable-dev-shm-usage"])
+    return args
+
+
 async def async_solve_turnstile_token(
     site_url: str,
     sitekey: str = "",
@@ -814,7 +821,7 @@ async def async_solve_turnstile_token(
 
     launch_kwargs: dict[str, Any] = {
         "headless": headless,
-        "args": ["--disable-blink-features=AutomationControlled"],
+        "args": build_browser_launch_args(),
     }
     resolved_browser = resolve_browser_executable_path(browser_path)
     if resolved_browser:
@@ -901,7 +908,7 @@ def resolve_turnstile_token(config: AppConfig) -> tuple[str, str]:
     if config.turnstile_token:
         return config.turnstile_token, "env"
     if config.turnstile_solver_url:
-        solver_timeout = max(config.request_timeout, config.turnstile_timeout + 5)
+        solver_timeout = max(config.request_timeout, config.turnstile_timeout + 30)
         try:
             response = requests.post(
                 config.turnstile_solver_url,

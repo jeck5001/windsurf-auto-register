@@ -19,4 +19,5 @@ services:
   turnstile-solver:
     image: ghcr.io/jeck5001/windsurf-auto-register-turnstile-solver:latest
     container_name: windsurf-auto-register-turnstile-solver
+    shm_size: "1gb"
     restart: unless-stopped

@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import requests
+
 from webapp.workflow_runner import WorkflowRequest, run_workflow_once
 from windsurf_auth_replay import (
     WorkflowError,
@@ -194,7 +196,7 @@ def test_resolve_turnstile_token_uses_solver_url(monkeypatch):
     assert captured["json"]["sitekey"] == "site-key"
     assert captured["json"]["timeout"] == 45
     assert captured["json"]["headless"] is True
-    assert captured["timeout"] == 20
+    assert captured["timeout"] == 50
     assert captured["verify"] is True
 
 
@@ -225,6 +227,64 @@ def test_resolve_turnstile_token_surfaces_solver_detail(monkeypatch):
         resolve_turnstile_token(config)
     except WorkflowError as exc:
         assert str(exc) == "请求外部 Turnstile solver失败: solver timed out"
+    else:
+        raise AssertionError("expected WorkflowError")
+
+
+def test_resolve_turnstile_token_uses_turnstile_timeout_for_solver_request(monkeypatch):
+    config = SimpleNamespace(
+        turnstile_token="",
+        turnstile_solver_url="http://turnstile-solver:8001/solve",
+        turnstile_site_url="https://windsurf.com/billing/individual?plan=9",
+        turnstile_sitekey="",
+        turnstile_browser_path="",
+        turnstile_timeout=90,
+        turnstile_headless=True,
+        request_timeout=20,
+        verify_ssl=True,
+    )
+
+    class FakeResponse:
+        ok = True
+
+        def json(self):
+            return {"token": "solver-token"}
+
+    captured = {}
+
+    def fake_post(url, json, timeout, verify):
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr("windsurf_auth_replay.requests.post", fake_post)
+
+    resolve_turnstile_token(config)
+
+    assert captured["timeout"] == 95
+
+
+def test_resolve_turnstile_token_wraps_solver_request_timeout(monkeypatch):
+    config = SimpleNamespace(
+        turnstile_token="",
+        turnstile_solver_url="http://turnstile-solver:8001/solve",
+        turnstile_site_url="https://windsurf.com/billing/individual?plan=9",
+        turnstile_sitekey="",
+        turnstile_browser_path="",
+        turnstile_timeout=90,
+        turnstile_headless=True,
+        request_timeout=20,
+        verify_ssl=True,
+    )
+
+    def fake_post(url, json, timeout, verify):
+        raise requests.exceptions.ReadTimeout("solver read timeout")
+
+    monkeypatch.setattr("windsurf_auth_replay.requests.post", fake_post)
+
+    try:
+        resolve_turnstile_token(config)
+    except WorkflowError as exc:
+        assert str(exc) == "请求外部 Turnstile solver 失败: solver read timeout"
     else:
         raise AssertionError("expected WorkflowError")
 

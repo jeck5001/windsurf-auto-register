@@ -901,18 +901,22 @@ def resolve_turnstile_token(config: AppConfig) -> tuple[str, str]:
     if config.turnstile_token:
         return config.turnstile_token, "env"
     if config.turnstile_solver_url:
-        response = requests.post(
-            config.turnstile_solver_url,
-            json={
-                "site_url": config.turnstile_site_url,
-                "sitekey": config.turnstile_sitekey,
-                "browser_path": config.turnstile_browser_path,
-                "timeout": config.turnstile_timeout,
-                "headless": config.turnstile_headless,
-            },
-            timeout=config.request_timeout,
-            verify=config.verify_ssl,
-        )
+        solver_timeout = max(config.request_timeout, config.turnstile_timeout + 5)
+        try:
+            response = requests.post(
+                config.turnstile_solver_url,
+                json={
+                    "site_url": config.turnstile_site_url,
+                    "sitekey": config.turnstile_sitekey,
+                    "browser_path": config.turnstile_browser_path,
+                    "timeout": config.turnstile_timeout,
+                    "headless": config.turnstile_headless,
+                },
+                timeout=solver_timeout,
+                verify=config.verify_ssl,
+            )
+        except requests.RequestException as exc:
+            raise WorkflowError(f"请求外部 Turnstile solver 失败: {exc}") from exc
         raise_for_http(response, "请求外部 Turnstile solver")
         payload = maybe_json(response)
         if not isinstance(payload, dict) or not payload.get("token"):

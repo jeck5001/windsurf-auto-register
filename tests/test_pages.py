@@ -151,6 +151,10 @@ def test_tasks_page_shows_docker_runtime_notice(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert "Docker runtime does not support browser automation flows in v1" in response.text
     assert "Leave email and password blank in full mode to auto-generate them." in response.text
+    assert 'autocomplete="off"' in response.text
+    assert 'name="task_email"' in response.text
+    assert 'name="task_password"' in response.text
+    assert 'autocomplete="new-password"' in response.text
 
 
 def test_tasks_page_shows_recent_tasks(tmp_path):

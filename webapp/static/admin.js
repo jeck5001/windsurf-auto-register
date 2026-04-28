@@ -5,8 +5,8 @@ function updateTaskFormForMode(form) {
   const emailField = form.querySelector("#task-email-field");
   const passwordField = form.querySelector("#task-password-field");
   const accountCountInput = form.querySelector("[name=account_count]");
-  const emailInput = form.querySelector("[name=email]");
-  const passwordInput = form.querySelector("[name=password]");
+  const emailInput = form.querySelector("#task-email-input");
+  const passwordInput = form.querySelector("#task-password-input");
   const trialCheckbox = form.querySelector("[name=generate_trial_link]");
 
   const text = {
@@ -89,6 +89,10 @@ async function submitTaskForm(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form).entries());
+  data.email = data.task_email || "";
+  data.password = data.task_password || "";
+  delete data.task_email;
+  delete data.task_password;
   data.account_count = Number(data.account_count || "1");
   data.generate_trial_link = form.querySelector("[name=generate_trial_link]").checked;
 

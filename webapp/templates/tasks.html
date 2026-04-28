@@ -13,7 +13,7 @@
 {% endif %}
 
 <section class="task-layout">
-  <form id="task-form" class="panel">
+  <form id="task-form" class="panel" autocomplete="off">
     <label>
       {{ t("tasks.mode") }}
       <select name="mode">
@@ -30,11 +30,11 @@
     <p id="task-mode-hint" class="muted">Leave email and password blank in full mode to auto-generate them.</p>
     <label id="task-email-field">
       {{ t("tasks.email") }}
-      <input type="email" name="email" placeholder="Optional in full mode">
+      <input id="task-email-input" type="email" name="task_email" autocomplete="off" placeholder="Optional in full mode">
     </label>
     <label id="task-password-field">
       {{ t("tasks.password") }}
-      <input type="password" name="password" placeholder="Optional in full mode">
+      <input id="task-password-input" type="password" name="task_password" autocomplete="new-password" placeholder="Optional in full mode">
     </label>
     <label class="checkbox">
       <input type="checkbox" name="generate_trial_link">

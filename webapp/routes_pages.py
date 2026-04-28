@@ -7,10 +7,30 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from webapp.config_health import build_health_snapshot
+from webapp.i18n import resolve_language, translator
 from webapp.pool_sync import sync_pool_accounts
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+
+
+def _context(request: Request, page: str, title_key: str, **values):
+    lang = resolve_language(request)
+    t = translator(lang)
+    return {
+        "page": page,
+        "title": t(title_key),
+        "lang": lang,
+        "t": t,
+        **values,
+    }
+
+
+def _template_response(request: Request, template_name: str, context: dict) -> HTMLResponse:
+    response = templates.TemplateResponse(request, template_name, context)
+    if request.query_params.get("lang") in {"en", "zh"}:
+        response.set_cookie("wa_lang", context["lang"], samesite="lax")
+    return response
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -21,34 +41,37 @@ def dashboard_page(request: Request) -> HTMLResponse:
         if repo is not None
         else {"stats": {"running": 0, "queued": 0, "failed": 0, "succeeded": 0}, "tasks": [], "events": []}
     )
-    return templates.TemplateResponse(
+    return _template_response(
         request,
         "dashboard.html",
-        {
-            "page": "dashboard",
-            "title": "Dashboard",
-            "stats": snapshot["stats"],
-            "tasks": snapshot["tasks"],
-            "events": snapshot["events"],
-        },
+        _context(
+            request,
+            "dashboard",
+            "dashboard.title",
+            stats=snapshot["stats"],
+            tasks=snapshot["tasks"],
+            events=snapshot["events"],
+        ),
     )
 
 
 @router.get("/tasks", response_class=HTMLResponse)
 def tasks_page(request: Request) -> HTMLResponse:
+    repo = getattr(request.app.state, "repository", None)
     settings = getattr(request.app.state, "runtime_settings", None)
-    return templates.TemplateResponse(
+    return _template_response(
         request,
         "tasks.html",
-        {
-            "page": "tasks",
-            "title": "Tasks",
-            "tasks": [],
-            "docker_mode": bool(settings and settings.docker_mode),
-            "browser_automation_supported": bool(
+        _context(
+            request,
+            "tasks",
+            "tasks.title",
+            tasks=(repo.dashboard_snapshot()["tasks"] if repo is not None else []),
+            docker_mode=bool(settings and settings.docker_mode),
+            browser_automation_supported=bool(
                 settings and settings.browser_automation_supported
             ),
-        },
+        ),
     )
 
 
@@ -62,23 +85,24 @@ def accounts_page(request: Request) -> HTMLResponse:
         except Exception:
             pass
     accounts = repo.list_accounts() if repo is not None else []
-    return templates.TemplateResponse(
+    return _template_response(
         request,
         "accounts.html",
-        {"page": "accounts", "title": "Accounts", "accounts": accounts},
+        _context(request, "accounts", "accounts.title", accounts=accounts),
     )
 
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request) -> HTMLResponse:
     snapshot = build_health_snapshot()
-    return templates.TemplateResponse(
+    return _template_response(
         request,
         "settings.html",
-        {
-            "page": "settings",
-            "title": "Settings",
-            "checks": snapshot["checks"],
-            "settings_ok": snapshot["ok"],
-        },
+        _context(
+            request,
+            "settings",
+            "settings.title",
+            checks=snapshot["checks"],
+            settings_ok=snapshot["ok"],
+        ),
     )

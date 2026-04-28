@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from webapp.workflow_runner import WorkflowRequest, run_workflow_once
-from windsurf_auth_replay import resolve_registration_password
+from windsurf_auth_replay import WorkflowError, generate_trial_checkout, resolve_registration_password
 
 
 def test_run_workflow_once_emits_masked_events(monkeypatch):
@@ -117,3 +117,33 @@ def test_resolve_registration_password_skips_prompt_when_interaction_disabled(mo
     password = resolve_registration_password("", interactive=False)
 
     assert password == "AutoPass123!"
+
+
+def test_generate_trial_checkout_continues_when_eligibility_endpoint_errors(monkeypatch):
+    config = SimpleNamespace()
+    captured = {}
+
+    class FakeWindsurf:
+        def check_trial_eligibility(self, session_token, config):
+            raise WorkflowError("检查 Trial 资格失败: an internal error occurred")
+
+        def create_trial_checkout_url(self, session_token, turnstile_token, config):
+            captured["session_token"] = session_token
+            captured["turnstile_token"] = turnstile_token
+            return "https://checkout.stripe.com/direct"
+
+    monkeypatch.setattr(
+        "windsurf_auth_replay.resolve_turnstile_token",
+        lambda config: ("turnstile-token", "solver"),
+    )
+
+    result = generate_trial_checkout(
+        FakeWindsurf(),
+        config,
+        session_token="session-plain",
+    )
+
+    assert result["trial_eligible"] is None
+    assert result["trial_checkout_url"] == "https://checkout.stripe.com/direct"
+    assert captured["session_token"] == "session-plain"
+    assert captured["turnstile_token"] == "turnstile-token"

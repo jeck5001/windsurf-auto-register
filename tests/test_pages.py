@@ -34,13 +34,14 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
     db_path = tmp_path / "admin.db"
     init_db(db_path)
     repo = Repository(db_path)
+    trial_url = "https://checkout.stripe.com/test"
     repo.save_account_result(
         task_id=1,
         mode="full",
         result={
             "email": "account@example.com",
             "ott": "ott$masked",
-            "trial_checkout_url": "https://checkout.stripe.com/test",
+            "trial_checkout_url": trial_url,
             "pool_result": {"account": {"status": "active"}},
         },
     )
@@ -53,8 +54,37 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
 
     assert accounts_response.status_code == 200
     assert "account@example.com" in accounts_response.text
+    assert f'href="{trial_url}"' in accounts_response.text
+    assert 'data-copy-text="' in accounts_response.text
+    assert "Open" in accounts_response.text
+    assert "Copy" in accounts_response.text
+    assert 'data-account-edit-button="' in accounts_response.text
+    assert 'data-account-trial-button="' in accounts_response.text
+    assert 'data-account-push-button="' in accounts_response.text
+    assert 'data-account-delete-button="' in accounts_response.text
+    assert 'id="account-modal"' in accounts_response.text
+    assert 'id="modal-session-token"' in accounts_response.text
+    assert 'data-modal-trial' not in accounts_response.text
+    assert 'data-modal-push' not in accounts_response.text
     assert settings_response.status_code == 200
     assert "configured" in settings_response.text
+
+
+def test_accounts_page_supports_language_switch(tmp_path, monkeypatch):
+    db_path = tmp_path / "admin.db"
+    init_db(db_path)
+    repo = Repository(db_path)
+    app.state.repository = repo
+    monkeypatch.setattr(app.state, "pool_client", None, raising=False)
+
+    client = TestClient(app)
+    response = client.get("/accounts?lang=zh")
+
+    assert response.status_code == 200
+    assert 'lang="zh"' in response.text
+    assert "账号" in response.text
+    assert "English" in response.text
+    assert "中文" in response.text
 
 
 def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monkeypatch):
@@ -84,6 +114,29 @@ def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monke
     assert [row["email"] for row in rows] == ["other@example.com", "legacy@example.com"]
 
 
+def test_deleted_synced_account_is_not_reimported_from_pool(tmp_path, monkeypatch):
+    db_path = tmp_path / "admin.db"
+    init_db(db_path)
+    repo = Repository(db_path)
+    repo.upsert_pool_account(email="legacy@example.com", pool_status="active")
+    account_id = repo.list_accounts()[0]["id"]
+    repo.delete_account(account_id)
+    app.state.repository = repo
+
+    class FakePoolClient:
+        def list_accounts(self):
+            return [{"id": "pool-1", "email": "legacy@example.com", "status": "active"}]
+
+    app.state.pool_client = FakePoolClient()
+
+    client = TestClient(app)
+    response = client.get("/accounts")
+
+    assert response.status_code == 200
+    assert "legacy@example.com" not in response.text
+    assert repo.list_accounts(limit=10) == []
+
+
 def test_tasks_page_shows_docker_runtime_notice(tmp_path, monkeypatch):
     app.state.db_path = tmp_path / "admin.db"
     monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
@@ -95,3 +148,18 @@ def test_tasks_page_shows_docker_runtime_notice(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert "Docker runtime does not support browser automation flows in v1" in response.text
     assert "Leave email and password blank in full mode to auto-generate them." in response.text
+
+
+def test_tasks_page_shows_recent_tasks(tmp_path):
+    db_path = tmp_path / "admin.db"
+    init_db(db_path)
+    repo = Repository(db_path)
+    repo.create_task(mode="trial", payload={"email": "account@example.com", "password": "SecretPass123"})
+    app.state.repository = repo
+
+    client = TestClient(app)
+    response = client.get("/tasks")
+
+    assert response.status_code == 200
+    assert "trial" in response.text
+    assert "queued" in response.text

@@ -1,52 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Dashboard</h1>
-  <p>Command center for current runs, queue health, and live logs.</p>
+  <h1>{{ t("dashboard.title") }}</h1>
+  <p>{{ t("dashboard.description") }}</p>
 </header>
 
 <section class="stats-grid">
-  <article class="panel">
-    <span>Running</span>
+  <article class="panel metric-card">
+    <span>{{ t("dashboard.running") }}</span>
     <strong>{{ stats.running }}</strong>
   </article>
-  <article class="panel">
-    <span>Queued Tasks</span>
+  <article class="panel metric-card">
+    <span>{{ t("dashboard.queued") }}</span>
     <strong>{{ stats.queued }}</strong>
   </article>
-  <article class="panel">
-    <span>Failed</span>
+  <article class="panel metric-card">
+    <span>{{ t("dashboard.failed") }}</span>
     <strong>{{ stats.failed }}</strong>
   </article>
-  <article class="panel">
-    <span>Succeeded</span>
+  <article class="panel metric-card">
+    <span>{{ t("dashboard.succeeded") }}</span>
     <strong>{{ stats.succeeded }}</strong>
   </article>
 </section>
 
 <section class="board-grid">
   <article class="panel">
-    <h2>Active and Recent Tasks</h2>
+    <h2>{{ t("dashboard.recent_tasks") }}</h2>
     <table>
       <thead>
-        <tr><th>ID</th><th>Mode</th><th>Status</th></tr>
+        <tr><th>{{ t("dashboard.id") }}</th><th>{{ t("dashboard.mode") }}</th><th>{{ t("dashboard.status") }}</th></tr>
       </thead>
       <tbody>
         {% for task in tasks %}
-        <tr><td>#{{ task.id }}</td><td>{{ task.mode }}</td><td>{{ task.status }}</td></tr>
+        <tr>
+          <td class="mono">#{{ task.id }}</td>
+          <td>{{ task.mode }}</td>
+          <td><span class="status-pill status-{{ task.status }}">{{ task.status }}</span></td>
+        </tr>
         {% else %}
-        <tr><td colspan="3">No tasks yet.</td></tr>
+        <tr><td colspan="3">{{ t("dashboard.no_tasks") }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </article>
   <article class="panel panel-dark">
-    <h2>Recent Events</h2>
+    <h2>{{ t("dashboard.events") }}</h2>
     <ul class="event-list">
       {% for event in events %}
-      <li><span>{{ event.level }}</span><p>{{ event.message }}</p></li>
+      <li><span class="event-level">{{ event.level }}</span><p>{{ event.message }}</p></li>
       {% else %}
-      <li><span>idle</span><p>No events yet.</p></li>
+      <li><span class="event-level">idle</span><p>{{ t("dashboard.no_events") }}</p></li>
       {% endfor %}
     </ul>
   </article>

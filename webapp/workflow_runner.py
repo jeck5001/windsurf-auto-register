@@ -16,7 +16,6 @@ from windsurf_auth_replay import (
     full_workflow,
     reset_event_callback,
     set_event_callback,
-    summarize_result,
     trial_browser_workflow,
     trial_workflow,
     upload_only_workflow,
@@ -30,6 +29,9 @@ class WorkflowRequest:
     password: str
     account_count: int
     generate_trial_link: bool
+    ott: str = ""
+    label: str = ""
+    session_token: str = ""
 
 
 def validate_runtime_support(
@@ -51,9 +53,9 @@ def _build_args(request: WorkflowRequest) -> Namespace:
         email=request.email,
         name="",
         password=request.password,
-        label="",
-        ott="",
-        session_token="",
+        label=request.label,
+        ott=request.ott,
+        session_token=request.session_token,
         account_count=request.account_count,
         base_url=env_str("WINDSURF_BASE_URL", "https://windsurf.com"),
         pool_base_url=env_str("WINDSURF_POOL_URL"),
@@ -114,7 +116,7 @@ def run_workflow_once(
             result = trial_browser_workflow(config, args)
         else:
             result = full_workflow(config, args)
-        return summarize_result(result, include_secrets=False)
+        return result
     except WorkflowError as exc:
         on_event({"level": "error", "message": str(exc)})
         raise

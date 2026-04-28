@@ -95,14 +95,15 @@ class Repository:
         with connect(self.db_path) as connection:
             connection.execute(
                 """
-                insert into accounts(task_id, email, mode, ott, trial_checkout_url, pool_status)
-                values (?, ?, ?, ?, ?, ?)
+                insert into accounts(task_id, email, mode, ott, session_token, trial_checkout_url, pool_status)
+                values (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task_id,
                     result.get("email", ""),
                     mode,
                     result.get("ott", ""),
+                    result.get("session_token", ""),
                     result.get("trial_checkout_url", ""),
                     ((result.get("pool_result") or {}).get("account") or {}).get("status", ""),
                 ),
@@ -110,6 +111,12 @@ class Repository:
 
     def upsert_pool_account(self, email: str, pool_status: str) -> None:
         with connect(self.db_path) as connection:
+            tombstone = connection.execute(
+                "select email from account_tombstones where email = ?",
+                (email,),
+            ).fetchone()
+            if tombstone is not None:
+                return
             existing = connection.execute(
                 "select id from accounts where email = ? order by id desc limit 1",
                 (email,),
@@ -117,8 +124,8 @@ class Repository:
             if existing is None:
                 connection.execute(
                     """
-                    insert into accounts(task_id, email, mode, ott, trial_checkout_url, pool_status)
-                    values (0, ?, 'pool-sync', '', '', ?)
+                    insert into accounts(task_id, email, mode, ott, session_token, trial_checkout_url, pool_status)
+                    values (0, ?, 'pool-sync', '', '', '', ?)
                     """,
                     (email, pool_status),
                 )
@@ -131,10 +138,60 @@ class Repository:
     def list_accounts(self, limit: int = 50) -> list[dict[str, Any]]:
         with connect(self.db_path) as connection:
             rows = connection.execute(
-                "select id, task_id, email, mode, ott, trial_checkout_url, pool_status, created_at from accounts order by id desc limit ?",
+                "select id, task_id, email, mode, ott, session_token, trial_checkout_url, pool_status, created_at from accounts order by id desc limit ?",
                 (limit,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def get_account(self, account_id: int) -> dict[str, Any]:
+        with connect(self.db_path) as connection:
+            row = connection.execute(
+                "select id, task_id, email, mode, ott, session_token, trial_checkout_url, pool_status, created_at from accounts where id = ?",
+                (account_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(account_id)
+        return dict(row)
+
+    def update_account(self, account_id: int, values: dict[str, Any]) -> dict[str, Any]:
+        allowed_fields = ("email", "pool_status", "trial_checkout_url", "ott", "session_token")
+        updates = {
+            key: str(values[key] or "")
+            for key in allowed_fields
+            if key in values
+        }
+        if updates:
+            assignments = ", ".join(f"{key} = ?" for key in updates)
+            params = [*updates.values(), account_id]
+            with connect(self.db_path) as connection:
+                cursor = connection.execute(
+                    f"update accounts set {assignments} where id = ?",
+                    params,
+                )
+                if cursor.rowcount == 0:
+                    raise KeyError(account_id)
+        return self.get_account(account_id)
+
+    def delete_account(self, account_id: int) -> None:
+        with connect(self.db_path) as connection:
+            existing = connection.execute(
+                "select email from accounts where id = ?",
+                (account_id,),
+            ).fetchone()
+            if existing is None:
+                raise KeyError(account_id)
+            email = str(existing["email"] or "").strip()
+            if email:
+                connection.execute(
+                    "insert or replace into account_tombstones(email, deleted_at) values (?, current_timestamp)",
+                    (email,),
+                )
+            cursor = connection.execute(
+                "delete from accounts where id = ?",
+                (account_id,),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(account_id)
 
     def dashboard_snapshot(self) -> dict[str, Any]:
         with connect(self.db_path) as connection:

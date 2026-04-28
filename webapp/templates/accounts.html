@@ -1,27 +1,106 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Accounts</h1>
-  <p>Review produced accounts, OTT upload state, and trial outputs.</p>
+  <h1>{{ t("accounts.title") }}</h1>
+  <p>{{ t("accounts.description") }}</p>
 </header>
 
 <section class="panel">
   <table>
     <thead>
-      <tr><th>Email</th><th>Mode</th><th>Pool Status</th><th>Trial URL</th></tr>
+      <tr>
+        <th>{{ t("accounts.email") }}</th>
+        <th>{{ t("accounts.mode") }}</th>
+        <th>{{ t("accounts.pool_status") }}</th>
+        <th>{{ t("accounts.trial_url") }}</th>
+        <th>{{ t("accounts.actions") }}</th>
+      </tr>
     </thead>
     <tbody>
       {% for account in accounts %}
       <tr>
         <td>{{ account.email }}</td>
-        <td>{{ account.mode }}</td>
-        <td>{{ account.pool_status }}</td>
-        <td>{{ "yes" if account.trial_checkout_url else "no" }}</td>
+        <td><span class="tag">{{ account.mode }}</span></td>
+        <td><span class="status-pill status-{{ account.pool_status or 'idle' }}">{{ account.pool_status or t("accounts.unknown") }}</span></td>
+        <td>
+          {% if account.trial_checkout_url %}
+          <div class="inline-actions">
+            <a href="{{ account.trial_checkout_url }}" target="_blank" rel="noopener noreferrer">{{ t("accounts.open") }}</a>
+            <button
+              type="button"
+              class="button-secondary"
+              data-copy-text="{{ account.trial_checkout_url }}"
+            >{{ t("accounts.copy") }}</button>
+          </div>
+          {% else %}
+          <span class="muted">-</span>
+          {% endif %}
+        </td>
+        <td>
+          <button
+            type="button"
+            class="button-secondary"
+            data-account-edit-button="{{ account.id }}"
+            data-account-json='{{ account | tojson }}'
+          >{{ t("accounts.edit") }}</button>
+          <button
+            type="button"
+            class="button-secondary"
+            data-account-trial-button="{{ account.id }}"
+            data-account-json='{{ account | tojson }}'
+          >{{ t("accounts.trial") }}</button>
+          <button
+            type="button"
+            class="button-secondary"
+            data-account-push-button="{{ account.id }}"
+            data-account-json='{{ account | tojson }}'
+          >{{ t("accounts.push") }}</button>
+          <button
+            type="button"
+            class="button-danger"
+            data-account-delete-button="{{ account.id }}"
+          >{{ t("accounts.delete") }}</button>
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="4">No accounts yet.</td></tr>
+      <tr><td colspan="5">{{ t("accounts.empty") }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
+
+<dialog id="account-modal" class="modal">
+  <form method="dialog" class="modal-shell">
+    <header class="modal-header">
+      <h2>{{ t("accounts.modal_title") }}</h2>
+      <button type="submit" class="button-secondary">{{ t("accounts.close") }}</button>
+    </header>
+    <input type="hidden" id="modal-account-id">
+    <div class="modal-grid">
+      <label>
+        {{ t("accounts.email") }}
+        <input id="modal-email" name="email">
+      </label>
+      <label>
+        {{ t("accounts.pool_status") }}
+        <input id="modal-pool-status" name="pool_status">
+      </label>
+      <label class="modal-wide">
+        {{ t("accounts.session_token") }}
+        <input id="modal-session-token" name="session_token">
+      </label>
+      <label class="modal-wide">
+        {{ t("accounts.trial_url") }}
+        <input id="modal-trial-url" name="trial_checkout_url">
+      </label>
+      <label class="modal-wide">
+        {{ t("accounts.ott") }}
+        <input id="modal-ott" name="ott">
+      </label>
+    </div>
+    <footer class="modal-actions">
+      <button type="button" data-modal-save>{{ t("accounts.save") }}</button>
+    </footer>
+  </form>
+</dialog>
 {% endblock %}

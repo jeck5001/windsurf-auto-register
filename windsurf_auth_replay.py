@@ -973,13 +973,19 @@ def generate_trial_checkout(
             headless=headless,
         )
 
+    eligible: Optional[bool] = None
     try:
         print_step("正在检查 Pro Trial 资格")
         eligible = windsurf.check_trial_eligibility(session_token, config)
         print_success(f"Trial 资格检查完成: {'eligible' if eligible else 'ineligible'}")
         if not eligible:
             raise WorkflowError("账号不符合 Trial 资格")
+    except WorkflowError as eligibility_exc:
+        if str(eligibility_exc) == "账号不符合 Trial 资格":
+            raise
+        print_warn(f"Trial 资格检查失败，继续尝试直接生成链接: {eligibility_exc}")
 
+    try:
         print_step("正在获取 Turnstile token")
         turnstile_token, token_source = resolve_turnstile_token(config)
         print_success(f"Turnstile token 已获取 (source={token_source})")

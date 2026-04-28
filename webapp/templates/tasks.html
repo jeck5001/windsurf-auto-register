@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Tasks</h1>
-  <p>Create runs, control queue execution, and inspect per-task results.</p>
+  <h1>{{ t("tasks.title") }}</h1>
+  <p>{{ t("tasks.description") }}</p>
 </header>
 
 {% if docker_mode and not browser_automation_supported %}
 <section class="panel panel-warning">
-  <h2>Docker runtime limitation</h2>
-  <p>Docker runtime does not support browser automation flows in v1. Use non-browser modes in this container.</p>
+  <h2>{{ t("tasks.docker_limit_title") }}</h2>
+  <p>{{ t("tasks.docker_limit_body") }}</p>
 </section>
 {% endif %}
 
 <section class="task-layout">
   <form id="task-form" class="panel">
     <label>
-      Mode
+      {{ t("tasks.mode") }}
       <select name="mode">
         <option value="full">full</option>
         <option value="trial">trial</option>
@@ -24,27 +24,44 @@
       </select>
     </label>
     <label>
-      Account Count
+      {{ t("tasks.account_count") }}
       <input type="number" name="account_count" value="1" min="1">
     </label>
     <p id="task-mode-hint" class="muted">Leave email and password blank in full mode to auto-generate them.</p>
     <label id="task-email-field">
-      Email
+      {{ t("tasks.email") }}
       <input type="email" name="email" placeholder="Optional in full mode">
     </label>
     <label id="task-password-field">
-      Password
+      {{ t("tasks.password") }}
       <input type="password" name="password" placeholder="Optional in full mode">
     </label>
     <label class="checkbox">
       <input type="checkbox" name="generate_trial_link">
-      Generate trial link
+      {{ t("tasks.generate_trial_link") }}
     </label>
-    <button type="submit">Create Task</button>
+    <button type="submit">{{ t("tasks.create") }}</button>
   </form>
   <section class="panel">
-    <h2>Recent Tasks</h2>
-    <div id="task-table">Task list will appear here.</div>
+    <h2>{{ t("tasks.recent") }}</h2>
+    <div id="task-table">
+      <table>
+        <thead>
+          <tr><th>{{ t("dashboard.id") }}</th><th>{{ t("dashboard.mode") }}</th><th>{{ t("dashboard.status") }}</th></tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+          <tr>
+            <td class="mono">#{{ task.id }}</td>
+            <td>{{ task.mode }}</td>
+            <td><span class="status-pill status-{{ task.status }}">{{ task.status }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">{{ t("tasks.placeholder") }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 </section>
 {% endblock %}

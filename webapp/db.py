@@ -41,11 +41,23 @@ def init_db(db_path: Path) -> None:
             email text,
             mode text not null,
             ott text,
+            session_token text,
             trial_checkout_url text,
             pool_status text,
             created_at text not null default current_timestamp
         );
+
+        create table if not exists account_tombstones (
+            email text primary key,
+            deleted_at text not null default current_timestamp
+        );
         """
     )
+    columns = {
+        row["name"]
+        for row in connection.execute("pragma table_info(accounts)").fetchall()
+    }
+    if "session_token" not in columns:
+        connection.execute("alter table accounts add column session_token text")
     connection.commit()
     connection.close()

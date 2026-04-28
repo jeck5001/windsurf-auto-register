@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Settings</h1>
-  <p>Environment readiness for YYDS Mail, Pool API, and trial generation.</p>
+  <h1>{{ t("settings.title") }}</h1>
+  <p>{{ t("settings.description") }}</p>
 </header>
 
 <section class="settings-grid">
   {% for name, item in checks.items() %}
-  <article class="panel">
-    <h2>{{ name }}</h2>
+  <article class="panel setting-card">
+    <span class="setting-name">{{ name }}</span>
     <strong>{{ item.display }}</strong>
   </article>
   {% endfor %}

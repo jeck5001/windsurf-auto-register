@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,11 +9,23 @@
   <body>
     <div class="shell">
       <aside class="rail">
-        <div class="brand">WA</div>
-        <a href="/dashboard" class="{% if page == 'dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="/tasks" class="{% if page == 'tasks' %}active{% endif %}">Tasks</a>
-        <a href="/accounts" class="{% if page == 'accounts' %}active{% endif %}">Accounts</a>
-        <a href="/settings" class="{% if page == 'settings' %}active{% endif %}">Settings</a>
+        <div class="brand-block">
+          <div class="brand">WA</div>
+          <div>
+            <strong>Windsurf Admin</strong>
+            <span>{{ t("app.subtitle") }}</span>
+          </div>
+        </div>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="/dashboard" class="{% if page == 'dashboard' %}active{% endif %}">{{ t("nav.dashboard") }}</a>
+          <a href="/tasks" class="{% if page == 'tasks' %}active{% endif %}">{{ t("nav.tasks") }}</a>
+          <a href="/accounts" class="{% if page == 'accounts' %}active{% endif %}">{{ t("nav.accounts") }}</a>
+          <a href="/settings" class="{% if page == 'settings' %}active{% endif %}">{{ t("nav.settings") }}</a>
+        </nav>
+        <div class="language-switch" aria-label="Language switch">
+          <a href="{{ request.url.path }}?lang=en" class="{% if lang == 'en' %}active{% endif %}">{{ t("language.english") }}</a>
+          <a href="{{ request.url.path }}?lang=zh" class="{% if lang == 'zh' %}active{% endif %}">{{ t("language.chinese") }}</a>
+        </div>
       </aside>
       <main class="content">
         {% block content %}{% endblock %}

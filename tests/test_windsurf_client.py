@@ -49,9 +49,12 @@ def test_get_one_time_token_sends_session_headers():
         session=session,
     )
 
-    ott = client.get_one_time_token("devin-session-token$session-token-plain")
+    ott = client.get_one_time_token(
+        "devin-session-token$session-token-plain",
+        auth_token="auth1_plain_token",
+    )
 
     assert ott == "ott$one-time-token-plain"
     assert session.calls[0][0].endswith("/GetOneTimeAuthToken")
     assert session.calls[0][1]["headers"]["X-Devin-Session-Token"] == "devin-session-token$session-token-plain"
-    assert session.calls[0][1]["headers"]["Authorization"] == "Bearer devin-session-token$session-token-plain"
+    assert session.calls[0][1]["headers"]["Authorization"] == "Bearer auth1_plain_token"

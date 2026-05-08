@@ -566,14 +566,15 @@ class WindsurfClient:
             "兑换 session",
         )
 
-    def get_one_time_token(self, session_token: str) -> str:
+    def get_one_time_token(self, session_token: str, auth_token: str = "") -> str:
+        auth_token = auth_token or session_token
         headers = self._proto_headers()
         headers["X-Devin-Session-Token"] = session_token
-        headers["Authorization"] = f"Bearer {session_token}"
+        headers["Authorization"] = f"Bearer {auth_token}"
         response = self.session.post(
             self._seat_service_url("GetOneTimeAuthToken"),
             headers=headers,
-            data=encode_proto_string(1, session_token),
+            data=encode_proto_string(1, auth_token),
             timeout=self.request_timeout,
             verify=self.verify_ssl,
         )
@@ -1497,7 +1498,7 @@ def run_registration_attempt(
     print_success(f"session 已获取: {mask_secret(session_token)}")
 
     print_step("正在生成 OTT")
-    ott = windsurf.get_one_time_token(session_token)
+    ott = windsurf.get_one_time_token(session_token, auth_token=auth1_token)
     print_success(f"OTT 已获取: {mask_secret(ott)}")
 
     label = args.label or name or email

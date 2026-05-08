@@ -568,22 +568,43 @@ class WindsurfClient:
 
     def get_one_time_token(self, session_token: str, auth_token: str = "") -> str:
         auth_token = auth_token or session_token
-        headers = self._proto_headers()
-        headers["X-Devin-Session-Token"] = session_token
-        headers["Authorization"] = f"Bearer {auth_token}"
-        response = self.session.post(
-            self._seat_service_url("GetOneTimeAuthToken"),
-            headers=headers,
-            data=encode_proto_string(1, auth_token),
-            timeout=self.request_timeout,
-            verify=self.verify_ssl,
-        )
-        raise_for_http(response, "获取 OTT")
-        return extract_ascii_token(
-            response.content,
-            rb"(ott\$[A-Za-z0-9._-]+)",
-            "获取 OTT",
-        )
+        url = self._seat_service_url("GetOneTimeAuthToken")
+        payload_variants = [
+            ("auth_token", auth_token, auth_token),
+            ("session_token", session_token, session_token),
+            ("auth_body_session_bearer", auth_token, session_token),
+            ("session_body_auth_bearer", session_token, auth_token),
+        ]
+        tried_variants: set[tuple[str, str, str]] = set()
+        errors: list[str] = []
+
+        for variant_name, body_token, bearer_token in payload_variants:
+            dedupe_key = (variant_name, body_token, bearer_token)
+            if dedupe_key in tried_variants:
+                continue
+            tried_variants.add(dedupe_key)
+
+            headers = self._proto_headers()
+            headers["X-Devin-Session-Token"] = session_token
+            headers["X-Devin-Auth1-Token"] = auth_token
+            headers["Authorization"] = f"Bearer {bearer_token}"
+            response = self.session.post(
+                url,
+                headers=headers,
+                data=encode_proto_string(1, body_token),
+                timeout=self.request_timeout,
+                verify=self.verify_ssl,
+            )
+            if response.ok:
+                return extract_ascii_token(
+                    response.content,
+                    rb"(ott\$[A-Za-z0-9._-]+)",
+                    "获取 OTT",
+                )
+            errors.append(f"{variant_name} -> {extract_error_message(response)}")
+
+        joined = " | ".join(errors)
+        raise WorkflowError(f"获取 OTT失败: {joined}")
 
     def check_trial_eligibility(self, session_token: str, config: AppConfig) -> bool:
         url = self._seat_service_url("CheckProTrialEligibility")

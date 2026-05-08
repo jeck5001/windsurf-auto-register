@@ -1,4 +1,4 @@
-from windsurf_auth_replay import WindsurfClient
+from windsurf_auth_replay import WindsurfClient, encode_proto_string
 
 
 class FakeResponse:
@@ -16,11 +16,14 @@ class FakeResponse:
 
 
 class FakeSession:
-    def __init__(self):
+    def __init__(self, responder=None):
         self.calls = []
+        self.responder = responder
 
     def post(self, url, **kwargs):
         self.calls.append((url, kwargs))
+        if self.responder is not None:
+            return self.responder(url, kwargs)
         if url.endswith("/WindsurfPostAuth"):
             return FakeResponse(200, b"devin-session-token$session-token-plain")
         if url.endswith("/GetOneTimeAuthToken"):
@@ -57,4 +60,34 @@ def test_get_one_time_token_sends_session_headers():
     assert ott == "ott$one-time-token-plain"
     assert session.calls[0][0].endswith("/GetOneTimeAuthToken")
     assert session.calls[0][1]["headers"]["X-Devin-Session-Token"] == "devin-session-token$session-token-plain"
+    assert session.calls[0][1]["headers"]["X-Devin-Auth1-Token"] == "auth1_plain_token"
     assert session.calls[0][1]["headers"]["Authorization"] == "Bearer auth1_plain_token"
+    assert session.calls[0][1]["data"] == encode_proto_string(1, "auth1_plain_token")
+
+
+def test_get_one_time_token_retries_alternate_variants():
+    def responder(url, kwargs):
+        if not url.endswith("/GetOneTimeAuthToken"):
+            raise AssertionError(url)
+        if (
+            kwargs["headers"]["X-Devin-Session-Token"] == "devin-session-token$session-token-plain"
+            and kwargs["headers"]["X-Devin-Auth1-Token"] == "auth1_plain_token"
+            and kwargs["headers"]["Authorization"] == "Bearer devin-session-token$session-token-plain"
+            and kwargs["data"] == encode_proto_string(1, "devin-session-token$session-token-plain")
+        ):
+            return FakeResponse(200, b"ott$one-time-token-plain")
+        return FakeResponse(401, b"missing auth token")
+
+    session = FakeSession(responder=responder)
+    client = WindsurfClient(
+        base_url="https://windsurf.com",
+        session=session,
+    )
+
+    ott = client.get_one_time_token(
+        "devin-session-token$session-token-plain",
+        auth_token="auth1_plain_token",
+    )
+
+    assert ott == "ott$one-time-token-plain"
+    assert len(session.calls) >= 2

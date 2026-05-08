@@ -604,27 +604,38 @@ class WindsurfClient:
         account_id: str = "",
         primary_org_id: str = "",
     ) -> str:
-        headers = self._proto_headers()
-        headers["X-Devin-Session-Token"] = session_token
-        if auth_token:
-            headers["X-Devin-Auth1-Token"] = auth_token
-        if account_id:
-            headers["X-Devin-Account-Id"] = account_id
-        if primary_org_id:
-            headers["X-Devin-Primary-Org-Id"] = primary_org_id
-        response = self.session.post(
-            self._seat_service_url("GetOneTimeAuthToken"),
-            headers=headers,
-            data=b"",
-            timeout=self.request_timeout,
-            verify=self.verify_ssl,
-        )
-        raise_for_http(response, "获取 OTT")
-        return extract_ascii_token(
-            response.content,
-            rb"(ott\$[A-Za-z0-9._-]+)",
-            "获取 OTT",
-        )
+        url = self._seat_service_url("GetOneTimeAuthToken")
+        x_auth_candidates = [session_token]
+        if auth_token and auth_token not in x_auth_candidates:
+            x_auth_candidates.append(auth_token)
+
+        errors: list[str] = []
+        for x_auth_token in x_auth_candidates:
+            headers = self._proto_headers()
+            headers["X-Auth-Token"] = x_auth_token
+            headers["X-Devin-Session-Token"] = session_token
+            if auth_token:
+                headers["X-Devin-Auth1-Token"] = auth_token
+            if account_id:
+                headers["X-Devin-Account-Id"] = account_id
+            if primary_org_id:
+                headers["X-Devin-Primary-Org-Id"] = primary_org_id
+            response = self.session.post(
+                url,
+                headers=headers,
+                data=b"",
+                timeout=self.request_timeout,
+                verify=self.verify_ssl,
+            )
+            if response.ok:
+                return extract_ascii_token(
+                    response.content,
+                    rb"(ott\$[A-Za-z0-9._-]+)",
+                    "获取 OTT",
+                )
+            errors.append(f"x_auth_token={mask_secret(x_auth_token)} -> {extract_error_message(response)}")
+
+        raise WorkflowError(f"获取 OTT失败: {' | '.join(errors)}")
 
     def check_trial_eligibility(self, session_token: str, config: AppConfig) -> bool:
         url = self._seat_service_url("CheckProTrialEligibility")

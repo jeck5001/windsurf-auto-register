@@ -219,6 +219,26 @@ def decode_proto_bool_field(data: bytes, field_number: int) -> Optional[bool]:
     return None
 
 
+def decode_proto_string_field(data: bytes, field_number: int) -> Optional[str]:
+    pos = 0
+    while pos < len(data):
+        tag, pos = decode_varint(data, pos)
+        current_field = tag >> 3
+        wire_type = tag & 0x7
+        if wire_type == 2:
+            length, pos = decode_varint(data, pos)
+            end = pos + length
+            if end > len(data):
+                raise WorkflowError("解析 protobuf 失败: 字符串字段长度越界")
+            raw = data[pos:end]
+            pos = end
+            if current_field == field_number:
+                return raw.decode("utf-8", errors="strict")
+            continue
+        pos = skip_proto_value(data, pos, wire_type)
+    return None
+
+
 def build_proto_message(*parts: tuple[int, str]) -> bytes:
     body = b""
     for field_number, value in parts:
@@ -549,62 +569,62 @@ class WindsurfClient:
             raise WorkflowError("完成注册失败: 响应里没有 auth1 token")
         return token
 
-    def exchange_for_session(self, auth1_token: str) -> str:
+    def exchange_for_session_context(self, auth1_token: str, org_id: str = "") -> dict[str, str]:
         headers = self._proto_headers()
         headers["X-Devin-Auth1-Token"] = auth1_token
+        if org_id:
+            headers["X-Devin-Primary-Org-Id"] = org_id
         response = self.session.post(
             self._seat_service_url("WindsurfPostAuth"),
             headers=headers,
-            data=encode_proto_string(1, auth1_token),
+            data=build_proto_message((2, org_id)),
             timeout=self.request_timeout,
             verify=self.verify_ssl,
         )
         raise_for_http(response, "兑换 session")
-        return extract_ascii_token(
+        session_token = decode_proto_string_field(response.content, 1) or extract_ascii_token(
             response.content,
             rb"(devin-session-token\$[A-Za-z0-9._~+/=-]+)",
             "兑换 session",
         )
+        return {
+            "session_token": session_token,
+            "auth1_token": decode_proto_string_field(response.content, 3) or auth1_token,
+            "account_id": decode_proto_string_field(response.content, 4) or "",
+            "primary_org_id": decode_proto_string_field(response.content, 5) or org_id,
+        }
 
-    def get_one_time_token(self, session_token: str, auth_token: str = "") -> str:
-        auth_token = auth_token or session_token
-        url = self._seat_service_url("GetOneTimeAuthToken")
-        payload_variants = [
-            ("auth_token", auth_token, auth_token),
-            ("session_token", session_token, session_token),
-            ("auth_body_session_bearer", auth_token, session_token),
-            ("session_body_auth_bearer", session_token, auth_token),
-        ]
-        tried_variants: set[tuple[str, str, str]] = set()
-        errors: list[str] = []
+    def exchange_for_session(self, auth1_token: str) -> str:
+        return self.exchange_for_session_context(auth1_token)["session_token"]
 
-        for variant_name, body_token, bearer_token in payload_variants:
-            dedupe_key = (variant_name, body_token, bearer_token)
-            if dedupe_key in tried_variants:
-                continue
-            tried_variants.add(dedupe_key)
-
-            headers = self._proto_headers()
-            headers["X-Devin-Session-Token"] = session_token
+    def get_one_time_token(
+        self,
+        session_token: str,
+        auth_token: str = "",
+        account_id: str = "",
+        primary_org_id: str = "",
+    ) -> str:
+        headers = self._proto_headers()
+        headers["X-Devin-Session-Token"] = session_token
+        if auth_token:
             headers["X-Devin-Auth1-Token"] = auth_token
-            headers["Authorization"] = f"Bearer {bearer_token}"
-            response = self.session.post(
-                url,
-                headers=headers,
-                data=encode_proto_string(1, body_token),
-                timeout=self.request_timeout,
-                verify=self.verify_ssl,
-            )
-            if response.ok:
-                return extract_ascii_token(
-                    response.content,
-                    rb"(ott\$[A-Za-z0-9._-]+)",
-                    "获取 OTT",
-                )
-            errors.append(f"{variant_name} -> {extract_error_message(response)}")
-
-        joined = " | ".join(errors)
-        raise WorkflowError(f"获取 OTT失败: {joined}")
+        if account_id:
+            headers["X-Devin-Account-Id"] = account_id
+        if primary_org_id:
+            headers["X-Devin-Primary-Org-Id"] = primary_org_id
+        response = self.session.post(
+            self._seat_service_url("GetOneTimeAuthToken"),
+            headers=headers,
+            data=b"",
+            timeout=self.request_timeout,
+            verify=self.verify_ssl,
+        )
+        raise_for_http(response, "获取 OTT")
+        return extract_ascii_token(
+            response.content,
+            rb"(ott\$[A-Za-z0-9._-]+)",
+            "获取 OTT",
+        )
 
     def check_trial_eligibility(self, session_token: str, config: AppConfig) -> bool:
         url = self._seat_service_url("CheckProTrialEligibility")
@@ -1515,11 +1535,20 @@ def run_registration_attempt(
     print_success(f"auth1 token 已获取: {mask_secret(auth1_token)}")
 
     print_step("正在兑换业务 session")
-    session_token = windsurf.exchange_for_session(auth1_token)
+    session_context = windsurf.exchange_for_session_context(auth1_token)
+    session_token = session_context["session_token"]
+    auth1_token = session_context.get("auth1_token") or auth1_token
+    account_id = session_context.get("account_id", "")
+    primary_org_id = session_context.get("primary_org_id", "")
     print_success(f"session 已获取: {mask_secret(session_token)}")
 
     print_step("正在生成 OTT")
-    ott = windsurf.get_one_time_token(session_token, auth_token=auth1_token)
+    ott = windsurf.get_one_time_token(
+        session_token,
+        auth_token=auth1_token,
+        account_id=account_id,
+        primary_org_id=primary_org_id,
+    )
     print_success(f"OTT 已获取: {mask_secret(ott)}")
 
     label = args.label or name or email
@@ -1543,6 +1572,8 @@ def run_registration_attempt(
         "email": email,
         "auth1_token": auth1_token,
         "session_token": session_token,
+        "account_id": account_id,
+        "primary_org_id": primary_org_id,
         "ott": ott,
         "pool_result": upload_result,
         "pool_accounts_total": len(accounts),

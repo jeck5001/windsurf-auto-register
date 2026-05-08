@@ -550,9 +550,11 @@ class WindsurfClient:
         return token
 
     def exchange_for_session(self, auth1_token: str) -> str:
+        headers = self._proto_headers()
+        headers["X-Devin-Auth1-Token"] = auth1_token
         response = self.session.post(
             self._seat_service_url("WindsurfPostAuth"),
-            headers=self._proto_headers(),
+            headers=headers,
             data=encode_proto_string(1, auth1_token),
             timeout=self.request_timeout,
             verify=self.verify_ssl,

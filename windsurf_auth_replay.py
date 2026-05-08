@@ -567,9 +567,12 @@ class WindsurfClient:
         )
 
     def get_one_time_token(self, session_token: str) -> str:
+        headers = self._proto_headers()
+        headers["X-Devin-Session-Token"] = session_token
+        headers["Authorization"] = f"Bearer {session_token}"
         response = self.session.post(
             self._seat_service_url("GetOneTimeAuthToken"),
-            headers=self._proto_headers(),
+            headers=headers,
             data=encode_proto_string(1, session_token),
             timeout=self.request_timeout,
             verify=self.verify_ssl,

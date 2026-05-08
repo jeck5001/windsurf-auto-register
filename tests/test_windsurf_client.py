@@ -21,7 +21,11 @@ class FakeSession:
 
     def post(self, url, **kwargs):
         self.calls.append((url, kwargs))
-        return FakeResponse(200, b"devin-session-token$session-token-plain")
+        if url.endswith("/WindsurfPostAuth"):
+            return FakeResponse(200, b"devin-session-token$session-token-plain")
+        if url.endswith("/GetOneTimeAuthToken"):
+            return FakeResponse(200, b"ott$one-time-token-plain")
+        raise AssertionError(url)
 
 
 def test_exchange_for_session_sends_auth1_header():
@@ -36,3 +40,18 @@ def test_exchange_for_session_sends_auth1_header():
     assert session_token == "devin-session-token$session-token-plain"
     assert session.calls[0][0].endswith("/WindsurfPostAuth")
     assert session.calls[0][1]["headers"]["X-Devin-Auth1-Token"] == "auth1_plain_token"
+
+
+def test_get_one_time_token_sends_session_headers():
+    session = FakeSession()
+    client = WindsurfClient(
+        base_url="https://windsurf.com",
+        session=session,
+    )
+
+    ott = client.get_one_time_token("devin-session-token$session-token-plain")
+
+    assert ott == "ott$one-time-token-plain"
+    assert session.calls[0][0].endswith("/GetOneTimeAuthToken")
+    assert session.calls[0][1]["headers"]["X-Devin-Session-Token"] == "devin-session-token$session-token-plain"
+    assert session.calls[0][1]["headers"]["Authorization"] == "Bearer devin-session-token$session-token-plain"

@@ -110,7 +110,7 @@ class Repository:
                 ),
             )
 
-    def upsert_pool_account(self, email: str, pool_status: str) -> None:
+    def upsert_pool_account(self, email: str, pool_status: str, password: str = "") -> None:
         with connect(self.db_path) as connection:
             tombstone = connection.execute(
                 "select email from account_tombstones where email = ?",
@@ -126,14 +126,20 @@ class Repository:
                 connection.execute(
                     """
                     insert into accounts(task_id, email, password, mode, ott, session_token, trial_checkout_url, pool_status)
-                    values (0, ?, '', 'pool-sync', '', '', '', ?)
+                    values (0, ?, ?, 'pool-sync', '', '', '', ?)
                     """,
-                    (email, pool_status),
+                    (email, password, pool_status),
                 )
             else:
                 connection.execute(
-                    "update accounts set pool_status = coalesce(?, pool_status) where id = ?",
-                    (pool_status or None, existing["id"]),
+                    """
+                    update accounts
+                    set
+                        pool_status = coalesce(?, pool_status),
+                        password = coalesce(nullif(?, ''), password)
+                    where id = ?
+                    """,
+                    (pool_status or None, password, existing["id"]),
                 )
 
     def list_accounts(self, limit: int = 50) -> list[dict[str, Any]]:

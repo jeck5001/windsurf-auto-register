@@ -104,7 +104,12 @@ def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monke
     class FakePoolClient:
         def list_accounts(self):
             return [
-                {"id": "pool-1", "email": "legacy@example.com", "status": "active"},
+                {
+                    "id": "pool-1",
+                    "email": "legacy@example.com",
+                    "password": "SyncedPass123",
+                    "status": "active",
+                },
                 {"id": "pool-2", "email": "other@example.com", "status": "paused"},
             ]
 
@@ -117,9 +122,11 @@ def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monke
     assert response.status_code == 200
     assert second_response.status_code == 200
     assert "legacy@example.com" in response.text
+    assert "SyncedPass123" in response.text
     assert "other@example.com" in response.text
     rows = repo.list_accounts(limit=10)
     assert [row["email"] for row in rows] == ["other@example.com", "legacy@example.com"]
+    assert rows[1]["password"] == "SyncedPass123"
 
 
 def test_deleted_synced_account_is_not_reimported_from_pool(tmp_path, monkeypatch):
@@ -143,6 +150,25 @@ def test_deleted_synced_account_is_not_reimported_from_pool(tmp_path, monkeypatc
     assert response.status_code == 200
     assert "legacy@example.com" not in response.text
     assert repo.list_accounts(limit=10) == []
+
+
+def test_accounts_page_surfaces_pool_sync_errors(tmp_path, monkeypatch):
+    db_path = tmp_path / "admin.db"
+    init_db(db_path)
+    repo = Repository(db_path)
+    app.state.repository = repo
+
+    class FakePoolClient:
+        def list_accounts(self):
+            raise RuntimeError("pool unavailable")
+
+    app.state.pool_client = FakePoolClient()
+
+    client = TestClient(app)
+    response = client.get("/accounts")
+
+    assert response.status_code == 200
+    assert "Pool sync failed: pool unavailable" in response.text
 
 
 def test_tasks_page_shows_docker_runtime_notice(tmp_path, monkeypatch):

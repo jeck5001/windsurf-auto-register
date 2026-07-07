@@ -742,15 +742,41 @@ class WindsurfPoolClient:
         self.ssh_key_path = os.path.expanduser(ssh_key_path)
         self.ssh_user = ssh_user
 
-    def upload_token(self, token: str, label: str = "") -> dict[str, Any]:
+    def upload_token(
+        self,
+        token: str,
+        label: str = "",
+        email: str = "",
+        password: str = "",
+    ) -> dict[str, Any]:
         if self.upload_mode == "dashboard":
-            return self.upload_via_dashboard(token, label=label)
-        return self.upload_via_auth_login(token, label=label)
+            return self.upload_via_dashboard(
+                token,
+                label=label,
+                email=email,
+                password=password,
+            )
+        return self.upload_via_auth_login(
+            token,
+            label=label,
+            email=email,
+            password=password,
+        )
 
-    def upload_via_auth_login(self, token: str, label: str = "") -> dict[str, Any]:
+    def upload_via_auth_login(
+        self,
+        token: str,
+        label: str = "",
+        email: str = "",
+        password: str = "",
+    ) -> dict[str, Any]:
         payload = {"token": token}
         if label:
             payload["label"] = label
+        if email:
+            payload["email"] = email
+        if password:
+            payload["password"] = password
         response = self.session.post(
             f"{self.base_url}/auth/login",
             headers={"Content-Type": "application/json"},
@@ -764,8 +790,18 @@ class WindsurfPoolClient:
             raise WorkflowError("上传 token 到 WindsurfPoolAPI 失败: 返回了非 JSON 数据")
         return payload
 
-    def upload_via_dashboard(self, token: str, label: str = "") -> dict[str, Any]:
+    def upload_via_dashboard(
+        self,
+        token: str,
+        label: str = "",
+        email: str = "",
+        password: str = "",
+    ) -> dict[str, Any]:
         payload = {"token": token, "label": label}
+        if email:
+            payload["email"] = email
+        if password:
+            payload["password"] = password
         response = self.session.post(
             f"{self.base_url}/dashboard/api/accounts",
             headers={
@@ -788,12 +824,15 @@ class WindsurfPoolClient:
             timeout=self.request_timeout,
             verify=self.verify_ssl,
         )
-        if not response.ok and self.dashboard_password:
+        if not response.ok:
+            headers = {}
+            if self.dashboard_password:
+                headers["X-Dashboard-Password"] = self.resolve_dashboard_password()
             response = self.session.get(
                 f"{self.base_url}/dashboard/api/accounts",
                 timeout=self.request_timeout,
                 verify=self.verify_ssl,
-                headers={"X-Dashboard-Password": self.resolve_dashboard_password()},
+                headers=headers,
             )
         raise_for_http(response, "读取 WindsurfPoolAPI 账户列表")
         payload = maybe_json(response)
@@ -1567,7 +1606,12 @@ def run_registration_attempt(
         "正在上传 OTT 到 WindsurfPoolAPI "
         f"({config.pool_base_url}, mode={config.pool_upload_mode})"
     )
-    upload_result = pool.upload_token(ott, label=label)
+    upload_result = pool.upload_token(
+        ott,
+        label=label,
+        email=email,
+        password=password,
+    )
     print_success("OTT 上传完成")
 
     accounts = []
@@ -1706,7 +1750,12 @@ def upload_only_workflow(config: AppConfig, args: argparse.Namespace) -> dict[st
         "正在上传 OTT 到 WindsurfPoolAPI "
         f"({config.pool_base_url}, mode={config.pool_upload_mode})"
     )
-    upload_result = pool.upload_token(ott, label=args.label or "")
+    upload_result = pool.upload_token(
+        ott,
+        label=args.label or "",
+        email=args.email or "",
+        password=args.password or "",
+    )
     print_success("OTT 上传完成")
 
     accounts = []

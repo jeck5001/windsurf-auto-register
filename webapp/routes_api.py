@@ -153,13 +153,14 @@ async def push_account_to_pool(request: Request, account_id: int, payload: dict 
     if not ott or "..." in ott:
         raise HTTPException(status_code=400, detail="No stored full OTT available for direct Push")
     label = str(payload.get("label") or account.get("email") or "").strip()
+    password = str(payload.get("password") or account.get("password") or "").strip()
     updated_account = await _run_account_action(
         request,
         account_id,
         WorkflowRequest(
             mode="upload",
             email=str(account.get("email") or "").strip(),
-            password="",
+            password=password,
             account_count=1,
             generate_trial_link=False,
             ott=ott,

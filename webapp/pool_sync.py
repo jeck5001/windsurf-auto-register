@@ -14,6 +14,7 @@ def sync_pool_accounts(repo, pool_client) -> int:
             continue
         repo.upsert_pool_account(
             email=email,
+            password=str(account.get("password") or "").strip(),
             pool_status=str(account.get("status") or "").strip(),
         )
         imported += 1

@@ -80,16 +80,23 @@ def tasks_page(request: Request) -> HTMLResponse:
 def accounts_page(request: Request) -> HTMLResponse:
     repo = getattr(request.app.state, "repository", None)
     pool_client = getattr(request.app.state, "pool_client", None)
+    sync_error = ""
     if repo is not None and pool_client is not None:
         try:
             sync_pool_accounts(repo, pool_client)
-        except Exception:
-            pass
+        except Exception as exc:
+            sync_error = f"Pool sync failed: {exc}"
     accounts = repo.list_accounts() if repo is not None else []
     return _template_response(
         request,
         "accounts.html",
-        _context(request, "accounts", "accounts.title", accounts=accounts),
+        _context(
+            request,
+            "accounts",
+            "accounts.title",
+            accounts=accounts,
+            sync_error=sync_error,
+        ),
     )
 
 

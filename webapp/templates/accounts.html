@@ -5,6 +5,12 @@
   <p>{{ t("accounts.description") }}</p>
 </header>
 
+{% if sync_error %}
+<section class="panel panel-warning">
+  <strong>{{ sync_error }}</strong>
+</section>
+{% endif %}
+
 <section class="panel">
   <table>
     <thead>

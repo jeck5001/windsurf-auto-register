@@ -30,6 +30,10 @@ class FakeSession:
             )
         raise AssertionError(url)
 
+    def post(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        return FakeResponse(200, {"account": {"status": "active"}})
+
 
 def test_list_accounts_falls_back_to_dashboard_when_auth_endpoint_fails():
     session = FakeSession()
@@ -44,3 +48,40 @@ def test_list_accounts_falls_back_to_dashboard_when_auth_endpoint_fails():
     assert accounts == [{"email": "legacy@example.com", "status": "active"}]
     assert session.calls[0][0].endswith("/auth/accounts")
     assert session.calls[1][0].endswith("/dashboard/api/accounts")
+
+
+def test_list_accounts_falls_back_to_dashboard_without_dashboard_password():
+    session = FakeSession()
+    client = WindsurfPoolClient(
+        base_url="http://pool.example",
+        session=session,
+    )
+
+    accounts = client.list_accounts()
+
+    assert accounts == [{"email": "legacy@example.com", "status": "active"}]
+    assert session.calls[1][0].endswith("/dashboard/api/accounts")
+    assert "X-Dashboard-Password" not in session.calls[1][1].get("headers", {})
+
+
+def test_upload_token_includes_account_credentials_when_available():
+    session = FakeSession()
+    client = WindsurfPoolClient(
+        base_url="http://pool.example",
+        session=session,
+    )
+
+    client.upload_token(
+        "ott$plain",
+        label="account@example.com",
+        email="account@example.com",
+        password="VisiblePass123",
+    )
+
+    assert session.calls[0][0].endswith("/auth/login")
+    assert session.calls[0][1]["json"] == {
+        "token": "ott$plain",
+        "label": "account@example.com",
+        "email": "account@example.com",
+        "password": "VisiblePass123",
+    }

@@ -224,16 +224,27 @@ def test_account_push_api_pushes_existing_account(tmp_path, monkeypatch):
         repo.save_account_result(
             task_id=1,
             mode="full",
-            result={"email": "account@example.com", "ott": "ott$plain"},
+            result={
+                "email": "account@example.com",
+                "password": "VisiblePass123",
+                "ott": "ott$plain",
+            },
         )
         account_id = repo.list_accounts()[0]["id"]
-        monkeypatch.setattr(
-            "webapp.routes_api.run_workflow_once",
-            lambda workflow_request, on_event: {
+        captured = {}
+
+        def fake_run(workflow_request, on_event):
+            captured["email"] = workflow_request.email
+            captured["password"] = workflow_request.password
+            return {
                 "mode": "upload",
                 "ott": workflow_request.ott,
                 "pool_result": {"account": {"status": "active"}},
-            },
+            }
+
+        monkeypatch.setattr(
+            "webapp.routes_api.run_workflow_once",
+            fake_run,
         )
 
         response = client.post(
@@ -245,6 +256,10 @@ def test_account_push_api_pushes_existing_account(tmp_path, monkeypatch):
         assert response.json()["account"]["ott"] == "ott$plain"
         assert response.json()["account"]["pool_status"] == "active"
         assert repo.get_account(account_id)["pool_status"] == "active"
+        assert captured == {
+            "email": "account@example.com",
+            "password": "VisiblePass123",
+        }
 
 
 def test_account_push_api_rejects_without_full_ott(tmp_path):

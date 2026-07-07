@@ -196,6 +196,18 @@ a {
   letter-spacing: -0.02em;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.pagination .disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .metric-card {
   min-height: 126px;
   display: flex;

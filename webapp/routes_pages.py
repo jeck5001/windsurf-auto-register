@@ -81,12 +81,21 @@ def accounts_page(request: Request) -> HTMLResponse:
     repo = getattr(request.app.state, "repository", None)
     pool_client = getattr(request.app.state, "pool_client", None)
     sync_error = ""
+    page_size = 50
     if repo is not None and pool_client is not None:
         try:
             sync_pool_accounts(repo, pool_client)
         except Exception as exc:
             sync_error = f"Pool sync failed: {exc}"
-    accounts = repo.list_accounts(limit=None) if repo is not None else []
+    total_accounts = repo.count_accounts() if repo is not None else 0
+    total_pages = max(1, (total_accounts + page_size - 1) // page_size)
+    try:
+        current_page = int(request.query_params.get("page", "1"))
+    except ValueError:
+        current_page = 1
+    current_page = min(max(current_page, 1), total_pages)
+    offset = (current_page - 1) * page_size
+    accounts = repo.list_accounts(limit=page_size, offset=offset) if repo is not None else []
     return _template_response(
         request,
         "accounts.html",
@@ -96,6 +105,12 @@ def accounts_page(request: Request) -> HTMLResponse:
             "accounts.title",
             accounts=accounts,
             sync_error=sync_error,
+            total_accounts=total_accounts,
+            current_page=current_page,
+            page_size=page_size,
+            total_pages=total_pages,
+            previous_page=current_page - 1 if current_page > 1 else None,
+            next_page=current_page + 1 if current_page < total_pages else None,
         ),
     )
 

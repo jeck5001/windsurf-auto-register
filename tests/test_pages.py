@@ -95,7 +95,7 @@ def test_accounts_page_supports_language_switch(tmp_path, monkeypatch):
     assert "中文" in response.text
 
 
-def test_accounts_page_shows_all_accounts_and_total_count(tmp_path, monkeypatch):
+def test_accounts_page_paginates_accounts_and_shows_total_count(tmp_path, monkeypatch):
     db_path = tmp_path / "admin.db"
     init_db(db_path)
     repo = Repository(db_path)
@@ -113,11 +113,22 @@ def test_accounts_page_shows_all_accounts_and_total_count(tmp_path, monkeypatch)
 
     client = TestClient(app)
     response = client.get("/accounts")
+    second_response = client.get("/accounts?page=2")
 
     assert response.status_code == 200
+    assert second_response.status_code == 200
     assert "55 accounts" in response.text
-    assert "account-00@example.com" in response.text
+    assert "Page 1 of 2" in response.text
+    assert 'href="/accounts?page=2"' in response.text
     assert "account-54@example.com" in response.text
+    assert "account-05@example.com" in response.text
+    assert "account-04@example.com" not in response.text
+    assert "55 accounts" in second_response.text
+    assert "Page 2 of 2" in second_response.text
+    assert 'href="/accounts?page=1"' in second_response.text
+    assert "account-04@example.com" in second_response.text
+    assert "account-00@example.com" in second_response.text
+    assert "account-54@example.com" not in second_response.text
 
 
 def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monkeypatch):

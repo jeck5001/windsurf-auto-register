@@ -3,13 +3,29 @@
 <header class="page-header">
   <h1>{{ t("accounts.title") }}</h1>
   <p>{{ t("accounts.description") }}</p>
-  <p class="muted">{{ accounts|length }} accounts</p>
+  <p class="muted">{{ total_accounts }} accounts · Page {{ current_page }} of {{ total_pages }}</p>
 </header>
 
 {% if sync_error %}
 <section class="panel panel-warning">
   <strong>{{ sync_error }}</strong>
 </section>
+{% endif %}
+
+{% if total_pages > 1 %}
+<nav class="pagination" aria-label="Account pages">
+  {% if previous_page %}
+  <a class="button-secondary" href="/accounts?page={{ previous_page }}">Previous</a>
+  {% else %}
+  <span class="button-secondary disabled">Previous</span>
+  {% endif %}
+  <span class="muted">Page {{ current_page }} of {{ total_pages }}</span>
+  {% if next_page %}
+  <a class="button-secondary" href="/accounts?page={{ next_page }}">Next</a>
+  {% else %}
+  <span class="button-secondary disabled">Next</span>
+  {% endif %}
+</nav>
 {% endif %}
 
 <section class="panel">
@@ -83,6 +99,22 @@
     </tbody>
   </table>
 </section>
+
+{% if total_pages > 1 %}
+<nav class="pagination" aria-label="Account pages">
+  {% if previous_page %}
+  <a class="button-secondary" href="/accounts?page={{ previous_page }}">Previous</a>
+  {% else %}
+  <span class="button-secondary disabled">Previous</span>
+  {% endif %}
+  <span class="muted">Page {{ current_page }} of {{ total_pages }}</span>
+  {% if next_page %}
+  <a class="button-secondary" href="/accounts?page={{ next_page }}">Next</a>
+  {% else %}
+  <span class="button-secondary disabled">Next</span>
+  {% endif %}
+</nav>
+{% endif %}
 
 <dialog id="account-modal" class="modal">
   <form method="dialog" class="modal-shell">

@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 
 from webapp.app import app
@@ -42,6 +44,7 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
         mode="full",
         result={
             "email": "account@example.com",
+            "password": "StoredPass123",
             "ott": "ott$masked",
             "trial_checkout_url": trial_url,
             "pool_result": {"account": {"status": "active"}},
@@ -56,6 +59,8 @@ def test_accounts_and_settings_pages_show_live_data(tmp_path, monkeypatch):
 
     assert accounts_response.status_code == 200
     assert "account@example.com" in accounts_response.text
+    assert "Password" in accounts_response.text
+    assert re.search(r"<td>\s*StoredPass123\s*</td>", accounts_response.text)
     assert f'href="{trial_url}"' in accounts_response.text
     assert 'data-copy-text="' in accounts_response.text
     assert "Open" in accounts_response.text

@@ -10,6 +10,7 @@
     <thead>
       <tr>
         <th>{{ t("accounts.email") }}</th>
+        <th>{{ t("accounts.password") }}</th>
         <th>{{ t("accounts.mode") }}</th>
         <th>{{ t("accounts.pool_status") }}</th>
         <th>{{ t("accounts.trial_url") }}</th>
@@ -20,6 +21,13 @@
       {% for account in accounts %}
       <tr>
         <td>{{ account.email }}</td>
+        <td>
+          {% if account.password %}
+          {{ account.password }}
+          {% else %}
+          <span class="muted">-</span>
+          {% endif %}
+        </td>
         <td><span class="tag">{{ account.mode }}</span></td>
         <td><span class="status-pill status-{{ account.pool_status or 'idle' }}">{{ account.pool_status or t("accounts.unknown") }}</span></td>
         <td>
@@ -63,7 +71,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="5">{{ t("accounts.empty") }}</td></tr>
+      <tr><td colspan="6">{{ t("accounts.empty") }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

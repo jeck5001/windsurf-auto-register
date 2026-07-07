@@ -86,7 +86,7 @@ def accounts_page(request: Request) -> HTMLResponse:
             sync_pool_accounts(repo, pool_client)
         except Exception as exc:
             sync_error = f"Pool sync failed: {exc}"
-    accounts = repo.list_accounts() if repo is not None else []
+    accounts = repo.list_accounts(limit=None) if repo is not None else []
     return _template_response(
         request,
         "accounts.html",

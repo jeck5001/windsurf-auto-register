@@ -95,6 +95,31 @@ def test_accounts_page_supports_language_switch(tmp_path, monkeypatch):
     assert "中文" in response.text
 
 
+def test_accounts_page_shows_all_accounts_and_total_count(tmp_path, monkeypatch):
+    db_path = tmp_path / "admin.db"
+    init_db(db_path)
+    repo = Repository(db_path)
+    for index in range(55):
+        repo.save_account_result(
+            task_id=1,
+            mode="full",
+            result={
+                "email": f"account-{index:02d}@example.com",
+                "password": f"Pass{index:02d}",
+            },
+        )
+    app.state.repository = repo
+    monkeypatch.setattr(app.state, "pool_client", None, raising=False)
+
+    client = TestClient(app)
+    response = client.get("/accounts")
+
+    assert response.status_code == 200
+    assert "55 accounts" in response.text
+    assert "account-00@example.com" in response.text
+    assert "account-54@example.com" in response.text
+
+
 def test_accounts_page_syncs_pool_accounts_into_local_repository(tmp_path, monkeypatch):
     db_path = tmp_path / "admin.db"
     init_db(db_path)

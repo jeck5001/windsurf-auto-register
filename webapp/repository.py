@@ -142,12 +142,13 @@ class Repository:
                     (pool_status or None, password, existing["id"]),
                 )
 
-    def list_accounts(self, limit: int = 50) -> list[dict[str, Any]]:
+    def list_accounts(self, limit: int | None = 50) -> list[dict[str, Any]]:
         with connect(self.db_path) as connection:
-            rows = connection.execute(
-                "select id, task_id, email, password, mode, ott, session_token, trial_checkout_url, pool_status, created_at from accounts order by id desc limit ?",
-                (limit,),
-            ).fetchall()
+            sql = "select id, task_id, email, password, mode, ott, session_token, trial_checkout_url, pool_status, created_at from accounts order by id desc"
+            if limit is None:
+                rows = connection.execute(sql).fetchall()
+            else:
+                rows = connection.execute(f"{sql} limit ?", (limit,)).fetchall()
         return [dict(row) for row in rows]
 
     def get_account(self, account_id: int) -> dict[str, Any]:
